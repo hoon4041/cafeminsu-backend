@@ -1,0 +1,56 @@
+### IntelliJ ###
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+### Eclipse ###
+.classpath
+.project
+.settings/
+bin/
+
+### VSCode ###
+.vscode/
+
+### Gradle ###
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+### Java ###
+*.class
+*.log
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+
+### Spring Boot ###
+HELP.md
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### Env / Secrets ###
+.env
+.env.local
+.env.*.local
+application-prod.yml
+application-secret.yml
+firebase-service-account.json
+*.pem
+*.key
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### Docker volumes (만약 mount된 경우) ###
+db/data/

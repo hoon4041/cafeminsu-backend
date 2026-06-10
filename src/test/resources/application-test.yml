@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    # H2 in-memory + MySQL 호환 모드. 테이블·컬럼 이름 소문자 강제.
+    url: jdbc:h2:mem:cafeminsu_test;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    # 테스트 시 매번 테이블 새로 만들고 종료 시 drop
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: false
+
+# JWT — 운영과 다른 시크릿 (64자 = 64바이트, HS256 안전)
+jwt:
+  secret: test-secret-must-be-at-least-32-bytes-long-for-hs256-algorithm
+  access-token-validity-seconds: 3600
+  refresh-token-validity-seconds: 1209600
+
+logging:
+  level:
+    root: WARN
+    com.cafeminsu: INFO
+    org.hibernate.SQL: WARN
+    org.springframework.web: WARN
