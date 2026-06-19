@@ -79,6 +79,59 @@ class StampFlowTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.result[0].count").value(1));
     }
 
+    @Test
+    @DisplayName("음료 3잔 주문 → 스탬프 3개 적립 (수량 비례)")
+    void earnPerDrinkQuantity() throws Exception {
+        Setup s = setup();
+        completeOrder(s.owner, createOrder(s, 3));
+
+        mockMvc.perform(get("/api/stamps/" + s.storeId)
+                        .header("Authorization", fixtures.authHeader(s.customer)))
+                .andExpect(jsonPath("$.result.count").value(3))
+                .andExpect(jsonPath("$.result.histories[0].earnedCount").value(3));
+    }
+
+    @Test
+    @DisplayName("비음료(디저트) 주문은 적립 안 됨 → STAMP_NOT_FOUND(2800)")
+    void nonDrinkDoesNotEarn() throws Exception {
+        User owner = fixtures.createOwner("점주");
+        User customer = fixtures.createCustomer("고객");
+        long storeId = createStore(owner);
+        long dessertId = createMenu(owner, storeId, "치즈케이크", 6000, "디저트");
+        Setup s = new Setup(owner, customer, storeId, dessertId);
+
+        completeOrder(owner, createOrder(s, 2));
+
+        mockMvc.perform(get("/api/stamps/" + storeId)
+                        .header("Authorization", fixtures.authHeader(customer)))
+                .andExpect(jsonPath("$.code").value(2800));
+    }
+
+    @Test
+    @DisplayName("음료 10잔 → 스탬프 0으로 차감 + 2000원 보상 기프티콘 발급, 선물 불가(2705)")
+    void tenDrinksIssuesNonTransferableReward() throws Exception {
+        Setup s = setup();
+        completeOrder(s.owner, createOrder(s, 10));
+        String customerAuth = fixtures.authHeader(s.customer);
+
+        // 10개 → 보상 전환되어 잔여 0
+        mockMvc.perform(get("/api/stamps/" + s.storeId).header("Authorization", customerAuth))
+                .andExpect(jsonPath("$.result.count").value(0));
+
+        // 보상 기프티콘이 사용 가능 목록에 노출 (2000원)
+        MvcResult my = mockMvc.perform(get("/api/gifticons/my").header("Authorization", customerAuth))
+                .andExpect(jsonPath("$.result.length()").value(1))
+                .andExpect(jsonPath("$.result[0].balance").value(2000))
+                .andReturn();
+        long gifticonId = objectMapper.readTree(my.getResponse().getContentAsString())
+                .at("/result/0/gifticonId").asLong();
+
+        // 선물(공유) 시도 → 차단 (GIFTICON_NOT_TRANSFERABLE)
+        mockMvc.perform(post("/api/gifticons/" + gifticonId + "/share")
+                        .header("Authorization", customerAuth))
+                .andExpect(jsonPath("$.code").value(2705));
+    }
+
     /* ===== helpers ===== */
     record Setup(User owner, User customer, long storeId, long menuId) {}
 
@@ -109,25 +162,35 @@ class StampFlowTest extends IntegrationTestSupport {
                 .at("/result/storeId").asLong();
     }
 
+    /** 기본은 음료 카테고리('커피')로 생성 — 스탬프 적립 대상. */
     private long createMenu(User owner, long storeId, String name, int price) throws Exception {
+        return createMenu(owner, storeId, name, price, "커피");
+    }
+
+    private long createMenu(User owner, long storeId, String name, int price, String category) throws Exception {
         MvcResult res = mockMvc.perform(post("/api/stores/" + storeId + "/menus")
                         .header("Authorization", fixtures.authHeader(owner))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"" + name + "\",\"price\":" + price + "}"))
+                        .content("{\"name\":\"" + name + "\",\"price\":" + price
+                                + ",\"category\":\"" + category + "\"}"))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
                 .at("/result/menuId").asLong();
     }
 
     private long createOrder(Setup s) throws Exception {
+        return createOrder(s, 1);
+    }
+
+    private long createOrder(Setup s, int quantity) throws Exception {
         String body = String.format("""
                 {
                   "storeId": %d,
                   "orderType": "MOBILE",
                   "orderMethod": "MANUAL",
-                  "items": [{"menuId": %d, "quantity": 1}]
+                  "items": [{"menuId": %d, "quantity": %d}]
                 }
-                """, s.storeId, s.menuId);
+                """, s.storeId, s.menuId, quantity);
         MvcResult res = mockMvc.perform(post("/api/orders")
                         .header("Authorization", fixtures.authHeader(s.customer))
                         .contentType(MediaType.APPLICATION_JSON)

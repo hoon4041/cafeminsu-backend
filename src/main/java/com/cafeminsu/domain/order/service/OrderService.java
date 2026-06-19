@@ -54,6 +54,7 @@ public class OrderService {
     // 도메인 연동 — 상태 전이 시 자동 호출
     private final com.cafeminsu.domain.notification.service.NotificationService notificationService;
     private final com.cafeminsu.domain.stamp.service.StampService stampService;
+    private final com.cafeminsu.domain.stamp.service.DrinkCategoryPolicy drinkCategoryPolicy;
 
     /* =========================================================
      * 1) 주문 생성 — 서버 사이드 가격 재계산
@@ -230,8 +231,10 @@ public class OrderService {
         Order order = findOwnedOrder(orderId, userId);
         order.complete();
         // 회원 주문만 스탬프 적립 (키오스크 비회원 주문은 userId가 null)
+        // 적립 기준: 음료 1잔당 1개 → 주문의 음료 수량 합
         if (order.getUserId() != null) {
-            stampService.earnFromOrder(order.getUserId(), order.getStoreId(), order.getId());
+            int drinkCount = countDrinkStamps(order);
+            stampService.earnFromOrder(order.getUserId(), order.getStoreId(), order.getId(), drinkCount);
         }
         return new OrderStatusRes(order.getStatus());
     }
@@ -309,6 +312,28 @@ public class OrderService {
         if (storeIds.isEmpty()) return Map.of();
         return storeRepository.findAllById(new HashSet<>(storeIds)).stream()
                 .collect(Collectors.toMap(Store::getId, Store::getName));
+    }
+
+    /** 주문 항목 중 '음료' 카테고리의 수량 합 — 스탬프 적립 수량. */
+    private int countDrinkStamps(Order order) {
+        List<OrderItem> items = order.getItems();
+        if (items.isEmpty()) return 0;
+
+        Set<Long> menuIds = items.stream().map(OrderItem::getMenuId).collect(Collectors.toSet());
+        // category는 null일 수 있으므로 빈 문자열로 정규화 (toMap은 null value 불가)
+        Map<Long, String> categories = menuRepository.findAllById(menuIds).stream()
+                .collect(Collectors.toMap(
+                        Menu::getId,
+                        m -> m.getCategory() == null ? "" : m.getCategory(),
+                        (a, b) -> a));
+
+        int total = 0;
+        for (OrderItem item : items) {
+            if (drinkCategoryPolicy.isDrink(categories.get(item.getMenuId()))) {
+                total += item.getQuantity();
+            }
+        }
+        return total;
     }
 
     /** 주문에 포함된 메뉴들의 이름 Map */

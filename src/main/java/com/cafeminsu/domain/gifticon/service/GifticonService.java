@@ -46,6 +46,8 @@ public class GifticonService {
 
     /** 기본 유효기간 6개월 */
     private static final int DEFAULT_VALIDITY_MONTHS = 6;
+    /** 스탬프 10개 적립 시 지급되는 보상 금액(원) */
+    private static final int STAMP_REWARD_AMOUNT = 2000;
 
     private final GifticonRepository gifticonRepository;
     private final GifticonUsageRepository usageRepository;
@@ -89,6 +91,32 @@ public class GifticonService {
         log.info("[Gifticon] purchased id={} sender={} amount={}",
                 saved.getId(), userId, req.amount());
         return new GifticonPurchaseRes(saved.getId(), saved.getQrCode(), merchantUid);
+    }
+
+    /* =========================================================
+     * 1-1) 스탬프 적립 보상 기프티콘 발급 (StampService에서 호출)
+     *
+     * 본인 전용(sender=receiver=본인), 전 매장 공용 금액형, 선물 불가(transferable=false).
+     * ========================================================= */
+    @Transactional
+    public Long issueStampReward(Long userId) {
+        String qrCode = UUID.randomUUID().toString();
+        LocalDateTime expiresAt = LocalDateTime.now().plusMonths(DEFAULT_VALIDITY_MONTHS);
+
+        Gifticon reward = Gifticon.builder()
+                .senderId(userId)
+                .receiverId(userId)   // 본인 전용
+                .amount(STAMP_REWARD_AMOUNT)
+                .qrCode(qrCode)
+                .message("스탬프 적립 보상")
+                .expiresAt(expiresAt)
+                .transferable(false)  // 선물 불가
+                .build();
+        Gifticon saved = gifticonRepository.save(reward);
+
+        log.info("[Gifticon] stamp reward issued id={} user={} amount={}",
+                saved.getId(), userId, STAMP_REWARD_AMOUNT);
+        return saved.getId();
     }
 
     /* =========================================================
@@ -185,6 +213,10 @@ public class GifticonService {
         Gifticon g = findOrThrow(gifticonId);
         if (!g.isSentBy(userId)) {
             throw new BaseException(BaseResponseStatus.ACCESS_DENIED);
+        }
+        // 본인 전용으로 발급된 기프티콘(예: 스탬프 보상)은 선물 불가
+        if (!g.isTransferable()) {
+            throw new BaseException(BaseResponseStatus.GIFTICON_NOT_TRANSFERABLE);
         }
         // TODO: 카카오 메시지 API 연동. 현재는 단순 링크.
         String shareLink = "https://cafeminsu.example/gifticon/" + g.getQrCode();

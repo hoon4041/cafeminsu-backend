@@ -68,10 +68,17 @@ public class Gifticon extends BaseEntity {
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
+    /**
+     * 선물(양도) 가능 여부. 기본 true.
+     * 스탬프 적립 보상처럼 본인 전용으로 발급된 기프티콘은 false → 선물 링크 발급 차단.
+     */
+    @Column(nullable = false, columnDefinition = "TINYINT(1) NOT NULL DEFAULT 1")
+    private boolean transferable;
+
     @Builder
     private Gifticon(Long senderId, Long receiverId, String receiverPhone,
                      Integer amount, String qrCode, String message,
-                     LocalDateTime expiresAt) {
+                     LocalDateTime expiresAt, Boolean transferable) {
         this.senderId = senderId;
         this.receiverId = receiverId;
         this.receiverPhone = receiverPhone;
@@ -81,6 +88,8 @@ public class Gifticon extends BaseEntity {
         this.message = message;
         this.expiresAt = expiresAt;
         this.status = GifticonStatus.UNUSED;
+        // null이면 기본 true (선물 가능)
+        this.transferable = transferable == null || transferable;
     }
 
     /**
