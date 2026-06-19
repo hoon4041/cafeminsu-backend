@@ -44,6 +44,9 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class OrderService {
 
+    /** 홈 화면 '최근 주문' 빠른 표시용 노출 건수. */
+    private static final int RECENT_ORDER_LIMIT = 5;
+
     private final OrderRepository orderRepository;
     private final StoreRepository storeRepository;
     private final MenuRepository menuRepository;
@@ -157,6 +160,19 @@ public class OrderService {
         var orders = (status == null)
                 ? orderRepository.findByUserIdOrderByIdDesc(userId, pageable)
                 : orderRepository.findByUserIdAndStatusOrderByIdDesc(userId, status, pageable);
+
+        Map<Long, String> storeNames = storeNames(orders.getContent().stream().map(Order::getStoreId).toList());
+        return orders.getContent().stream()
+                .map(o -> OrderListItemRes.of(o, storeNames.getOrDefault(o.getStoreId(), "(삭제된 매장)")))
+                .toList();
+    }
+
+    /* =========================================================
+     * 3-1) 최근 주문 N건 — 홈 화면용 (상태 무관, 최신순 5건)
+     * ========================================================= */
+    public List<OrderListItemRes> getRecentOrders(Long userId) {
+        var orders = orderRepository.findByUserIdOrderByIdDesc(
+                userId, PageRequest.of(0, RECENT_ORDER_LIMIT));
 
         Map<Long, String> storeNames = storeNames(orders.getContent().stream().map(Order::getStoreId).toList());
         return orders.getContent().stream()

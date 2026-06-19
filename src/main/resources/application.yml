@@ -32,11 +32,8 @@ jwt:
   refresh-token-validity-seconds: 1209600    # 14일 (2주)
 
 # 외부 서비스 키 (실제 값은 환경변수 또는 application-{profile}.yml로 분리)
-kakao:
-  client-id: ${KAKAO_CLIENT_ID:}
-  client-secret: ${KAKAO_CLIENT_SECRET:}
-  redirect-uri: ${KAKAO_REDIRECT_URI:}
-
+# 카카오 로그인은 클라이언트가 전달한 access_token으로 /v2/user/me만 호출하므로
+# client-id/secret/redirect-uri 설정이 필요 없다.
 openai:
   api-key: ${OPENAI_API_KEY:}
   model: gpt-4o-mini
