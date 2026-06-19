@@ -65,6 +65,13 @@ public class OrderController {
         return BaseResponse.success(orderService.getMyOrders(userId, status, page, size));
     }
 
+    /* 3-1. 최근 주문 5건 (홈 화면) */
+    @Operation(summary = "최근 주문 5건", description = "홈 화면 빠른 표시용. 상태 무관 최신순 5건.")
+    @GetMapping("/api/orders/my/recent")
+    public BaseResponse<List<OrderListItemRes>> myRecentOrders(@LoginUserId Long userId) {
+        return BaseResponse.success(orderService.getRecentOrders(userId));
+    }
+
     /* 4. 주문 상세 (본인 또는 매장 점주) */
     @Operation(summary = "주문 상세")
     @GetMapping("/api/orders/{orderId}")
