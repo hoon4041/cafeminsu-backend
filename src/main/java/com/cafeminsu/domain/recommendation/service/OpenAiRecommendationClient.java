@@ -28,21 +28,27 @@ import java.util.Map;
 @Component
 public class OpenAiRecommendationClient {
 
-    private static final String OPENAI_URL = "https://api.openai.com/v1/chat/completions";
     private static final double TEMPERATURE = 0.7;
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
     private final String model;
 
+    /**
+     * base-url은 SSAFY GMS 프록시(투명 프록시) 경유를 기본값으로 둔다.
+     * GMS는 실제 OpenAI URL의 host 앞에 gms.ssafy.io/gmsapi/ 를 붙이는 방식이라
+     * Chat Completions 경로(/v1/chat/completions)가 그대로 동작한다.
+     * 정식 OpenAI로 바꾸려면 openai.base-url(또는 OPENAI_BASE_URL)만 교체하면 된다.
+     */
     public OpenAiRecommendationClient(
-            @Value("${openai.api-key}") String apiKey,
-            @Value("${openai.model}") String model,
+            @Value("${openai.api-key:}") String apiKey,
+            @Value("${openai.model:gpt-4o-mini}") String model,
+            @Value("${openai.base-url:https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions}") String baseUrl,
             ObjectMapper objectMapper) {
         this.model = model;
         this.objectMapper = objectMapper;
         this.restClient = RestClient.builder()
-                .baseUrl(OPENAI_URL)
+                .baseUrl(baseUrl)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                 .build();
     }
