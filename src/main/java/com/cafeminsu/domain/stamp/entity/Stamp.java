@@ -1,6 +1,8 @@
 package com.cafeminsu.domain.stamp.entity;
 
 import com.cafeminsu.global.common.BaseEntity;
+import com.cafeminsu.global.common.BaseResponseStatus;
+import com.cafeminsu.global.exception.BaseException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -52,5 +54,14 @@ public class Stamp extends BaseEntity {
     public void earn(int amount) {
         if (amount <= 0) return;
         this.count += amount;
+    }
+
+    /** 보상 전환 시 스탬프 차감. 잔여가 부족하면 예외. */
+    public void redeem(int amount) {
+        if (amount <= 0) return;
+        if (this.count < amount) {
+            throw new BaseException(BaseResponseStatus.INVALID_REQUEST, "차감할 스탬프가 부족합니다.");
+        }
+        this.count -= amount;
     }
 }

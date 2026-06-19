@@ -45,6 +45,12 @@ portone:
 fcm:
   service-account-path: ${FCM_SERVICE_ACCOUNT_PATH:firebase-service-account.json}
 
+# 스탬프 적립 정책
+# drink-categories: 스탬프 적립 대상(음료)으로 인정할 메뉴 category 목록 (대소문자·공백 무시).
+#   매장에서 실제 사용하는 category 값에 맞게 조정하세요.
+stamp:
+  drink-categories: 커피,음료,에이드,티,스무디,라떼
+
 # Swagger / OpenAPI
 springdoc:
   swagger-ui:

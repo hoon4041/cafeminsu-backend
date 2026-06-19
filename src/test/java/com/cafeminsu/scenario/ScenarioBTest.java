@@ -17,7 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ScenarioBTest extends IntegrationTestSupport {
 
     @Test
-    @DisplayName("E2E: 결제 완료 → 점주 상태 전이 → 고객에게 알림 2건 + 스탬프 1개")
+    @DisplayName("E2E: 결제 완료 → 점주 상태 전이 → 고객에게 알림 2건 + 스탬프 2개(음료 2잔)")
     void fullFlowWithStampAndNotification() throws Exception {
         User owner = fixtures.createOwner("점주");
         User customer = fixtures.createCustomer("고객");
@@ -48,15 +48,16 @@ class ScenarioBTest extends IntegrationTestSupport {
         mockMvc.perform(get("/api/notifications/unread-count").header("Authorization", customerAuth))
                 .andExpect(jsonPath("$.result.count").value(2));
 
-        /* === 스탬프: 매장에 1개 적립 === */
+        /* === 스탬프: 음료 2잔 → 2개 적립 (적립 1회 이력) === */
         mockMvc.perform(get("/api/stamps").header("Authorization", customerAuth))
                 .andExpect(jsonPath("$.result.length()").value(1))
                 .andExpect(jsonPath("$.result[0].storeId").value((int) storeId))
-                .andExpect(jsonPath("$.result[0].count").value(1));
+                .andExpect(jsonPath("$.result[0].count").value(2));
 
         mockMvc.perform(get("/api/stamps/" + storeId).header("Authorization", customerAuth))
-                .andExpect(jsonPath("$.result.count").value(1))
-                .andExpect(jsonPath("$.result.histories.length()").value(1));
+                .andExpect(jsonPath("$.result.count").value(2))
+                .andExpect(jsonPath("$.result.histories.length()").value(1))
+                .andExpect(jsonPath("$.result.histories[0].earnedCount").value(2));
 
         /* === 정산 (점주) === */
         mockMvc.perform(get("/api/stores/" + storeId + "/payments").header("Authorization", ownerAuth))
@@ -80,7 +81,7 @@ class ScenarioBTest extends IntegrationTestSupport {
         MvcResult res = mockMvc.perform(post("/api/stores/" + storeId + "/menus")
                         .header("Authorization", fixtures.authHeader(owner))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"" + name + "\",\"price\":" + price + "}"))
+                        .content("{\"name\":\"" + name + "\",\"price\":" + price + ",\"category\":\"커피\"}"))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
                 .at("/result/menuId").asLong();
