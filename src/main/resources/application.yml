@@ -37,6 +37,9 @@ jwt:
 openai:
   api-key: ${OPENAI_API_KEY:}
   model: gpt-4o-mini
+  # SSAFY GMS 프록시 경유(기본). 실제 OpenAI 경로를 그대로 붙이는 투명 프록시라
+  # Chat Completions 경로가 그대로 동작한다. 정식 OpenAI로 바꾸려면 이 값만 교체.
+  base-url: ${OPENAI_BASE_URL:https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions}
 
 portone:
   api-key: ${PORTONE_API_KEY:}
