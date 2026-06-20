@@ -55,13 +55,18 @@ public class FileStorageService {
             throw new BaseException(BaseResponseStatus.UNSUPPORTED_IMAGE_TYPE);
         }
         String filename = UUID.randomUUID() + "." + ext;
+        Path target = menuDir.resolve(filename);
         try {
             Files.createDirectories(menuDir);
-            Path target = menuDir.resolve(filename);
             try (InputStream in = file.getInputStream()) {
                 Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException e) {
+            try {
+                Files.deleteIfExists(target);
+            } catch (IOException ignored) {
+                // best-effort cleanup of partial file
+            }
             log.error("[FileStorage] store failed", e);
             throw new BaseException(BaseResponseStatus.FILE_STORAGE_FAILED);
         }
