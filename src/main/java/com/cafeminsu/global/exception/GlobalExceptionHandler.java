@@ -11,6 +11,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.util.stream.Collectors;
@@ -86,6 +88,24 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(BaseResponseStatus.ACCESS_DENIED.getHttpStatus())
                 .body(BaseResponse.failure(BaseResponseStatus.ACCESS_DENIED));
+    }
+
+    /** 멀티파트 파일 용량 초과 (컨테이너 레벨 안전망) */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<BaseResponse<Void>> handleMaxUpload(MaxUploadSizeExceededException e) {
+        log.warn("[MaxUpload] {}", e.getMessage());
+        return ResponseEntity
+                .status(BaseResponseStatus.IMAGE_SIZE_EXCEEDED.getHttpStatus())
+                .body(BaseResponse.failure(BaseResponseStatus.IMAGE_SIZE_EXCEEDED));
+    }
+
+    /** 멀티파트 필수 파트(file) 누락 */
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<BaseResponse<Void>> handleMissingPart(MissingServletRequestPartException e) {
+        log.warn("[MissingPart] {}", e.getMessage());
+        return ResponseEntity
+                .status(BaseResponseStatus.INVALID_REQUEST.getHttpStatus())
+                .body(BaseResponse.failure(BaseResponseStatus.INVALID_REQUEST.getCode(), e.getMessage()));
     }
 
     /** 예상치 못한 모든 예외 — 마지막 안전망 */

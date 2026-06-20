@@ -16,6 +16,7 @@ import com.cafeminsu.domain.store.entity.Store;
 import com.cafeminsu.domain.store.repository.StoreRepository;
 import com.cafeminsu.global.common.BaseResponseStatus;
 import com.cafeminsu.global.exception.BaseException;
+import com.cafeminsu.global.storage.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,7 @@ public class MenuService {
     private final MenuRepository menuRepository;
     private final MenuOptionRepository menuOptionRepository;
     private final StoreRepository storeRepository;
+    private final FileStorageService fileStorageService;
 
     /* =========================================================
      * 1) 메뉴 등록 (점주)
@@ -82,6 +84,7 @@ public class MenuService {
     @Transactional
     public void updateMenu(Long userId, Long menuId, MenuUpdateReq req) {
         Menu menu = findOwnedMenu(menuId, userId);
+        String oldImageUrl = menu.getImageUrl();
         menu.updatePartial(
                 req.name(),
                 req.description(),
@@ -89,6 +92,10 @@ public class MenuService {
                 req.category(),
                 req.imageUrl()
         );
+        // 이미지가 실제로 교체된 경우에만 이전 업로드 파일 정리(번들 svg는 no-op)
+        if (req.imageUrl() != null && !java.util.Objects.equals(oldImageUrl, req.imageUrl())) {
+            fileStorageService.delete(oldImageUrl);
+        }
     }
 
     /* =========================================================
@@ -97,7 +104,9 @@ public class MenuService {
     @Transactional
     public void deleteMenu(Long userId, Long menuId) {
         Menu menu = findOwnedMenu(menuId, userId);
+        String imageUrl = menu.getImageUrl();
         menuRepository.delete(menu);  // @SQLDelete → UPDATE deleted_at
+        fileStorageService.delete(imageUrl);  // 업로드 파일만 삭제(번들 svg는 no-op)
     }
 
     /* =========================================================

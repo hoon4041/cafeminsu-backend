@@ -30,3 +30,8 @@ logging:
     com.cafeminsu: INFO
     org.hibernate.SQL: WARN
     org.springframework.web: WARN
+
+# 파일 업로드 (테스트용 디렉토리)
+file:
+  upload-dir: ./build/test-uploads
+  max-image-bytes: 5242880

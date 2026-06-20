@@ -17,6 +17,11 @@ spring:
         # naming strategy: 엔티티의 @Column(name=...)를 그대로 사용
     open-in-view: false   # 트랜잭션 밖 lazy loading 방지
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+
 server:
   port: 8080
   forward-headers-strategy: framework
@@ -71,3 +76,8 @@ logging:
     com.cafeminsu: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.orm.jdbc.bind: TRACE   # SQL 파라미터 값 보고 싶을 때
+
+# 파일 업로드
+file:
+  upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+  max-image-bytes: 5242880   # 5MB
