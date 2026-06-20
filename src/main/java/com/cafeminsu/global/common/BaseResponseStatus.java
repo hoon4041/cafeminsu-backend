@@ -34,6 +34,10 @@ public enum BaseResponseStatus {
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, 2002, "요청 값 검증에 실패했습니다."),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, 2003, "허용되지 않은 HTTP 메서드입니다."),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, 2004, "요청한 리소스를 찾을 수 없습니다."),
+    EMPTY_FILE(HttpStatus.BAD_REQUEST, 2005, "업로드할 파일이 비어 있습니다."),
+    UNSUPPORTED_IMAGE_TYPE(HttpStatus.BAD_REQUEST, 2006, "지원하지 않는 이미지 형식입니다. (jpg, jpeg, png, webp만 허용)"),
+    IMAGE_SIZE_EXCEEDED(HttpStatus.PAYLOAD_TOO_LARGE, 2007, "이미지 용량이 허용치를 초과했습니다."),
+    FILE_STORAGE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, 2008, "파일 저장에 실패했습니다."),
 
     // ===== 인증/인가 (2100~2199) =====
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, 2100, "인증이 필요합니다."),
