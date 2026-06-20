@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="에이드">
+  <rect width="400" height="400" rx="32" fill="#CDE9C8"/>
+  <rect x="232" y="58" width="14" height="215" rx="7" fill="#FF6B6B" transform="rotate(12 239 165)"/>
+  <path d="M150 120 h100 l-10 200 a14 14 0 0 1 -14 12 h-52 a14 14 0 0 1 -14 -12 z" fill="#BFE8E2" opacity="0.85"/>
+  <path d="M157 176 h86 l-8 144 a12 12 0 0 1 -12 10 h-46 a12 12 0 0 1 -12 -10 z" fill="#B6E25A"/>
+  <circle cx="200" cy="212" r="26" fill="#F4E04D" stroke="#E0B400" stroke-width="4"/>
+  <path d="M200 188 v48 M176 212 h48" fill="none" stroke="#E0B400" stroke-width="3"/>
+  <g fill="#FFFFFF" opacity="0.85"><circle cx="184" cy="266" r="7"/><circle cx="216" cy="286" r="5"/><circle cx="200" cy="306" r="6"/></g>
+</svg>

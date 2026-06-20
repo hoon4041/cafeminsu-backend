@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="마들렌">
+  <rect width="400" height="400" rx="32" fill="#FBEAC6"/>
+  <ellipse cx="200" cy="300" rx="96" ry="18" fill="#E8D2A0"/>
+  <ellipse cx="200" cy="212" rx="92" ry="74" fill="#E0BC72"/>
+  <ellipse cx="200" cy="200" rx="92" ry="70" fill="#F0D391"/>
+  <g stroke="#D9B25E" stroke-width="4" fill="none" opacity="0.8">
+    <path d="M200 134 V266"/><path d="M152 142 L168 260"/><path d="M248 142 L232 260"/><path d="M124 166 L150 252"/><path d="M276 166 L250 252"/>
+  </g>
+  <ellipse cx="200" cy="196" rx="40" ry="28" fill="#F7E2A8" opacity="0.6"/>
+</svg>

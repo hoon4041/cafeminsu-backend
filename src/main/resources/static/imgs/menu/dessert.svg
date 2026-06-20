@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="디저트">
+  <rect width="400" height="400" rx="32" fill="#F1D9C2"/>
+  <ellipse cx="200" cy="316" rx="132" ry="22" fill="#E3C3A3"/>
+  <path d="M200 150 L292 300 H108 Z" fill="#F4D9A8"/>
+  <path d="M170 202 L230 202 L238 226 L162 226 Z" fill="#FBEFD6"/>
+  <path d="M147 263 L253 263 L262 286 L138 286 Z" fill="#FBEFD6"/>
+  <path d="M200 152 q26 28 0 42 q-26 -14 0 -42 z" fill="#E78AA6"/>
+  <circle cx="200" cy="148" r="12" fill="#D8456E"/>
+</svg>
