@@ -58,6 +58,16 @@ class FileStorageServiceTest {
     }
 
     @Test
+    @DisplayName("확장자는 허용이지만 content-type이 이미지가 아니면 예외")
+    void badContentType() {
+        MockMultipartFile file = new MockMultipartFile("file", "x.png", "text/plain", new byte[]{1});
+        assertThatThrownBy(() -> service.store(file))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getStatus())
+                .isEqualTo(BaseResponseStatus.UNSUPPORTED_IMAGE_TYPE);
+    }
+
+    @Test
     @DisplayName("최대 용량 초과는 예외")
     void tooBig() {
         FileStorageService small = new FileStorageService(tempDir.toString(), 2L);

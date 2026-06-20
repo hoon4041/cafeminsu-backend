@@ -31,6 +31,7 @@ public class FileStorageService {
     public static final String MENU_UPLOAD_URL_PREFIX = "/imgs/menu/uploads/";
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
 
     private final Path menuDir;
     private final long maxBytes;
@@ -50,8 +51,13 @@ public class FileStorageService {
         if (file.getSize() > maxBytes) {
             throw new BaseException(BaseResponseStatus.IMAGE_SIZE_EXCEEDED);
         }
+        // 확장자 검증용으로만 originalFilename을 사용한다. 실제 디스크 파일명은 아래 UUID이므로 경로 주입 위험 없음.
         String ext = extractExtension(file.getOriginalFilename());
         if (!ALLOWED_EXTENSIONS.contains(ext)) {
+            throw new BaseException(BaseResponseStatus.UNSUPPORTED_IMAGE_TYPE);
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
             throw new BaseException(BaseResponseStatus.UNSUPPORTED_IMAGE_TYPE);
         }
         String filename = UUID.randomUUID() + "." + ext;
