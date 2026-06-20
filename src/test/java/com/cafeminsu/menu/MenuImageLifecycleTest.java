@@ -16,6 +16,7 @@ import java.nio.file.Paths;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -51,6 +52,30 @@ class MenuImageLifecycleTest extends IntegrationTestSupport {
                 .andExpect(status().isOk());
 
         assertThat(Files.exists(file)).isFalse();
+    }
+
+    @Test
+    @DisplayName("메뉴 수정으로 이미지 교체 시 이전 업로드 파일은 삭제된다")
+    void updateMenuReplacesAndDeletesOldImage() throws Exception {
+        User owner = fixtures.createOwner("점주");
+        long storeId = createStore(owner);
+
+        String oldUrl = uploadImage(owner);
+        Path oldFile = resolve(oldUrl);
+        long menuId = createMenuWithImage(owner, storeId, "아메리카노", 4500, oldUrl);
+        assertThat(Files.exists(oldFile)).isTrue();
+
+        String newUrl = uploadImage(owner);
+        Path newFile = resolve(newUrl);
+
+        mockMvc.perform(patch("/api/menus/" + menuId)
+                        .header("Authorization", fixtures.authHeader(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"imageUrl\":\"" + newUrl + "\"}"))
+                .andExpect(status().isOk());
+
+        assertThat(Files.exists(oldFile)).isFalse();  // 이전 파일 삭제됨
+        assertThat(Files.exists(newFile)).isTrue();    // 새 파일 유지
     }
 
     /* ===== helpers ===== */

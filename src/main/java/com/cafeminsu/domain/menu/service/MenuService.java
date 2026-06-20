@@ -84,6 +84,7 @@ public class MenuService {
     @Transactional
     public void updateMenu(Long userId, Long menuId, MenuUpdateReq req) {
         Menu menu = findOwnedMenu(menuId, userId);
+        String oldImageUrl = menu.getImageUrl();
         menu.updatePartial(
                 req.name(),
                 req.description(),
@@ -91,6 +92,10 @@ public class MenuService {
                 req.category(),
                 req.imageUrl()
         );
+        // 이미지가 실제로 교체된 경우에만 이전 업로드 파일 정리(번들 svg는 no-op)
+        if (req.imageUrl() != null && !java.util.Objects.equals(oldImageUrl, req.imageUrl())) {
+            fileStorageService.delete(oldImageUrl);
+        }
     }
 
     /* =========================================================
