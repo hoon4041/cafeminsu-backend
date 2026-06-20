@@ -49,7 +49,9 @@ public class SecurityConfig {
             "/v3/api-docs/**",
             // health
             "/health",
-            "/actuator/**"
+            "/actuator/**",
+            // 정적 리소스 (메뉴 이미지 등) — 비로그인 접근 허용
+            "/imgs/**"
     };
 
     @Bean
@@ -91,6 +93,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/orders/*/complete").hasRole("OWNER")
                         .requestMatchers("/api/stores/*/orders").hasRole("OWNER")
                         .requestMatchers("/api/stores/*/payments").hasRole("OWNER")
+
+                        /* ===== Image 업로드 (점주 전용) ===== */
+                        .requestMatchers(HttpMethod.POST, "/api/images/**").hasRole("OWNER")
 
                         // 나머지는 로그인 필요
                         .anyRequest().authenticated()
