@@ -145,10 +145,10 @@ WHERE NOT EXISTS (SELECT 1 FROM menus m WHERE m.store_id=v.store_id AND m.name=v
 -- 3) 메뉴 이미지 (로컬 정적 SVG 일러스트 — 메뉴 단위) -------------------------
 --    백엔드가 /imgs/menu/<슬러그>.svg 를 제공. 아직 이미지가 없는 메뉴에만 채운다(기존 값 보존).
 --    이름별 전용 일러스트를 매핑하고, 혹시 모를 신규 메뉴는 카테고리 기본 이미지로 폴백한다.
---    @img_base는 호스트. 배포 환경에선 실제 호스트(예: https://api.cafeminsu.com)로 바꾸세요.
-SET @img_base = 'http://localhost:8080';
+--    상대경로(/imgs/...)로 저장하므로 프론트가 접속한 호스트 기준으로 해석된다.
+--    → 로컬·운영 등 환경이 달라도 DB 값을 수정할 필요가 없다(이미지·API 서버가 동일 호스트 전제).
 UPDATE menus
-SET image_url = CONCAT(@img_base, '/imgs/menu/', CASE name
+SET image_url = CONCAT('/imgs/menu/', CASE name
     WHEN '아메리카노'   THEN 'americano'
     WHEN '카페라떼'     THEN 'cafe-latte'
     WHEN '바닐라라떼'   THEN 'vanilla-latte'
