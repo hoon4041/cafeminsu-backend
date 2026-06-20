@@ -5,8 +5,10 @@ import com.cafeminsu.support.IntegrationTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.startsWith;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -48,6 +50,23 @@ class ImageFlowTest extends IntegrationTestSupport {
     void unauthenticatedCannotUpload() throws Exception {
         mockMvc.perform(multipart("/api/images/menu").file(pngFile()))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("업로드한 이미지는 /imgs/menu/uploads 경로로 서빙된다")
+    void uploadedFileIsServed() throws Exception {
+        User owner = fixtures.createOwner("점주");
+
+        MvcResult res = mockMvc.perform(multipart("/api/images/menu")
+                        .file(pngFile())
+                        .header("Authorization", fixtures.authHeader(owner)))
+                .andExpect(status().isOk())
+                .andReturn();
+        String imageUrl = objectMapper.readTree(res.getResponse().getContentAsString())
+                .at("/result/imageUrl").asText();
+
+        mockMvc.perform(get(imageUrl))
+                .andExpect(status().isOk());
     }
 
     @Test
