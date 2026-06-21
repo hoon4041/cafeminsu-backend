@@ -38,6 +38,7 @@ public class SecurityConfig {
      */
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/user/kakao-login",
+            "/api/user/owner-login",
             "/api/user/refresh",
             "/api/user/nickname/check",
             // [로컬 전용] DevController는 @Profile("local")로 운영에선 빈 자체가 없음.

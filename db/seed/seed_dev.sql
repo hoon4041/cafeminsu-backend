@@ -5,8 +5,12 @@
 --   docker exec -i cafeminsu-mysql mysql --default-character-set=utf8mb4 -ucafeminsu -pcafeminsu cafeminsu < db/seed/seed_dev.sql
 --
 -- 로그인:
---   POST /api/dev/login  { "nickname": "시드점주", "role": "OWNER" }   → 시드 매장 소유 점주
---   POST /api/dev/login  { "nickname": "테스트고객" }                  → 일반 고객(추천/주문/스탬프)
+--   POST /api/dev/login     { "nickname": "시드점주", "role": "OWNER" }       → 시드 매장 소유 점주(로컬 전용)
+--   POST /api/dev/login     { "nickname": "테스트고객" }                      → 일반 고객(추천/주문/스탬프)
+--   POST /api/user/owner-login { "loginId": "owner01", "password": "owner1234" } → 점주 ID/PW 로그인(운영에서도 동작)
+--
+-- 점주 비밀번호는 BCrypt 해시로 저장한다(평문 금지). 아래 해시는 "owner1234".
+--   새 비번 해시 생성 예) python -c "import bcrypt;print(bcrypt.hashpw(b'새비번',bcrypt.gensalt(10)).decode())"
 --
 -- 이 스크립트는 재실행 안전(idempotent): 실행 시 기존 시드(시드점주 소유 매장·메뉴)를 지우고 다시 만든다.
 --   주의: 시드 매장에 '주문'이 있으면 FK(RESTRICT)로 삭제가 막힐 수 있다(주문은 매장 참조).
@@ -19,9 +23,16 @@
 USE cafeminsu;
 
 -- 0) 점주 유저 (dev-login nickname '시드점주'와 동일 kakao_id) --------------------
-INSERT INTO users (email, nickname, kakao_id, role, created_at, updated_at)
-VALUES ('owner@seed.local', '시드점주', 'dev-시드점주', 'OWNER', NOW(), NOW())
-ON DUPLICATE KEY UPDATE role = 'OWNER';
+--    login_id/password를 함께 심어 ID/PW 로그인(/api/user/owner-login)도 가능.
+--    password 해시는 "owner1234"의 BCrypt 값.
+INSERT INTO users (email, nickname, kakao_id, login_id, password, role, created_at, updated_at)
+VALUES ('owner@seed.local', '시드점주', 'dev-시드점주', 'owner01',
+        '$2b$10$NepyPgqOsOUjI/0RXq.GNeTtDCd/cd439XNcamThTnEOlLcLJLqFS',
+        'OWNER', NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+        role = 'OWNER',
+        login_id = 'owner01',
+        password = '$2b$10$NepyPgqOsOUjI/0RXq.GNeTtDCd/cd439XNcamThTnEOlLcLJLqFS';
 
 SET @owner_id = (SELECT id FROM users WHERE kakao_id = 'dev-시드점주');
 
@@ -120,16 +131,18 @@ INSERT INTO menus (store_id, name, description, price, category, is_available, c
   (@s_bonggok, '캐모마일티', '은은한 허브티',                     4500, '티',     1, NOW(), NOW()),
   (@s_bonggok, '망고스무디', '달콤한 망고 스무디',                6000, '스무디', 1, NOW(), NOW());
 
--- 4) 메뉴 이미지 (외부 공개 플레이스홀더 LoremFlickr, 데모용 — 카테고리 기반) ----
---    ?lock=N 으로 이미지를 고정. 운영에선 실제 메뉴 사진 URL로 교체.
+-- 4) 메뉴 이미지 (로컬 정적 SVG 일러스트 — 카테고리 기반) -----------------------
+--    백엔드가 src/main/resources/static/imgs/menu/<카테고리>.svg 를 /imgs/menu/...로 제공.
+--    @img_base는 호스트(로컬 기본). 배포 환경에선 실제 호스트로 바꾸세요.
+SET @img_base = 'http://localhost:8080';
 UPDATE menus
-SET image_url = CASE category
-    WHEN '커피'   THEN 'https://loremflickr.com/400/400/coffee?lock=21'
-    WHEN '라떼'   THEN 'https://loremflickr.com/400/400/cafe,latte?lock=22'
-    WHEN '에이드' THEN 'https://loremflickr.com/400/400/lemonade?lock=23'
-    WHEN '티'     THEN 'https://loremflickr.com/400/400/tea,cup?lock=24'
-    WHEN '스무디' THEN 'https://loremflickr.com/400/400/smoothie?lock=25'
-    WHEN '디저트' THEN 'https://loremflickr.com/400/400/cake,dessert?lock=26'
-    ELSE image_url
-END
+SET image_url = CONCAT(@img_base, '/imgs/menu/', CASE category
+    WHEN '커피'   THEN 'coffee'
+    WHEN '라떼'   THEN 'latte'
+    WHEN '에이드' THEN 'ade'
+    WHEN '티'     THEN 'tea'
+    WHEN '스무디' THEN 'smoothie'
+    WHEN '디저트' THEN 'dessert'
+    ELSE 'coffee'
+END, '.svg')
 WHERE store_id IN (SELECT id FROM stores WHERE owner_id = @owner_id);
