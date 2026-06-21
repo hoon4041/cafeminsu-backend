@@ -19,6 +19,8 @@ CREATE TABLE users (
   email               VARCHAR(100) NULL,
   nickname            VARCHAR(20)  NULL UNIQUE,
   kakao_id            VARCHAR(50)  NULL UNIQUE,
+  login_id            VARCHAR(50)  NULL UNIQUE  COMMENT '점주 ID/PW 로그인용. 카카오 유저는 NULL',
+  password            VARCHAR(100) NULL         COMMENT 'BCrypt 해시. 평문 저장 금지. 카카오 유저는 NULL',
   profile_image_url   VARCHAR(500) NULL,
   role                ENUM('CUSTOMER','OWNER') NOT NULL DEFAULT 'CUSTOMER',
   latitude            DECIMAL(10,7) NULL,

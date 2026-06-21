@@ -8,6 +8,7 @@ import com.cafeminsu.domain.user.dto.LocationRes;
 import com.cafeminsu.domain.user.dto.NicknameChangeRes;
 import com.cafeminsu.domain.user.dto.NicknameCheckRes;
 import com.cafeminsu.domain.user.dto.OtherUserProfileRes;
+import com.cafeminsu.domain.user.dto.OwnerLoginRes;
 import com.cafeminsu.domain.user.dto.RefreshRes;
 import com.cafeminsu.domain.user.dto.SignupReq;
 import com.cafeminsu.domain.user.dto.SignupRes;
@@ -24,6 +25,7 @@ import com.cafeminsu.global.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +42,7 @@ public class UserService {
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenBlacklistService tokenBlacklistService;
     private final KakaoOAuthClient kakaoOAuthClient;
+    private final PasswordEncoder passwordEncoder;
 
     @Value("${jwt.refresh-token-validity-seconds}")
     private long refreshValiditySeconds;
@@ -79,6 +82,38 @@ public class UserService {
                 .build());
 
         return new KakaoLoginRes(accessToken, refreshToken, isNewUser, user.getNickname());
+    }
+
+    /* =========================================================
+     * 1-2) 점주 ID/PW 로그인
+     *
+     * 계정은 DB에 사전 등록되어 있다(비밀번호는 BCrypt 해시).
+     * 카카오 로그인과 "신원 확인" 방식만 다를 뿐, 토큰 발급 로직은 동일하게 재사용한다.
+     * 발급된 JWT는 카카오 유저 토큰과 형태가 같아 이후 인증/권한 처리에 그대로 쓰인다.
+     * ========================================================= */
+    @Transactional
+    public OwnerLoginRes ownerLogin(String loginId, String rawPassword) {
+        // 1) 신원 확인: loginId + password 대조 (카카오 API 확인을 대체)
+        //    아이디 없음/비번 불일치를 같은 코드로 응답해 계정 존재 여부 노출을 막음.
+        User user = userRepository.findByLoginId(loginId)
+                .orElseThrow(() -> new BaseException(BaseResponseStatus.OWNER_LOGIN_FAILED));
+
+        if (user.getPassword() == null
+                || !passwordEncoder.matches(rawPassword, user.getPassword())) {
+            throw new BaseException(BaseResponseStatus.OWNER_LOGIN_FAILED);
+        }
+
+        // 2) 이하 토큰 발급은 kakaoLogin과 동일
+        String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getRole().name());
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
+
+        refreshTokenRepository.save(RefreshToken.builder()
+                .userId(user.getId())
+                .token(refreshToken)
+                .expiresAt(LocalDateTime.now().plusSeconds(refreshValiditySeconds))
+                .build());
+
+        return new OwnerLoginRes(accessToken, refreshToken, user.getNickname());
     }
 
     /* =========================================================

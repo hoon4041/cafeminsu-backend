@@ -35,6 +35,14 @@ public class User extends BaseEntity {
     @Column(name = "kakao_id", length = 50, unique = true)
     private String kakaoId;
 
+    /** 점주 ID/PW 로그인용. 카카오 가입 유저는 null. */
+    @Column(name = "login_id", length = 50, unique = true)
+    private String loginId;
+
+    /** BCrypt 해시. 평문 저장 금지. 카카오 가입 유저는 null. */
+    @Column(name = "password", length = 100)
+    private String password;
+
     @Column(name = "profile_image_url", length = 500)
     private String profileImageUrl;
 
@@ -52,11 +60,28 @@ public class User extends BaseEntity {
     private String fcmToken;
 
     @Builder
-    private User(String email, String kakaoId, String profileImageUrl, UserRole role) {
+    private User(String email, String kakaoId, String loginId, String password,
+                 String nickname, String profileImageUrl, UserRole role) {
         this.email = email;
         this.kakaoId = kakaoId;
+        this.loginId = loginId;
+        this.password = password;
+        this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
         this.role = role;
+    }
+
+    /**
+     * 점주 ID/PW 계정 생성. password는 반드시 BCrypt로 인코딩된 값을 넘길 것.
+     * (보통 DB에 미리 심어두지만, 코드로 생성할 때 사용)
+     */
+    public static User createOwner(String loginId, String encodedPassword, String nickname) {
+        return User.builder()
+                .loginId(loginId)
+                .password(encodedPassword)
+                .nickname(nickname)
+                .role(UserRole.OWNER)
+                .build();
     }
 
     /** 카카오 OAuth 신규 가입 시 호출. nickname은 별도 회원가입 단계에서 채움. */

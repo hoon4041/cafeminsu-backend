@@ -10,6 +10,8 @@ import com.cafeminsu.domain.user.dto.NicknameChangeReq;
 import com.cafeminsu.domain.user.dto.NicknameChangeRes;
 import com.cafeminsu.domain.user.dto.NicknameCheckRes;
 import com.cafeminsu.domain.user.dto.OtherUserProfileRes;
+import com.cafeminsu.domain.user.dto.OwnerLoginReq;
+import com.cafeminsu.domain.user.dto.OwnerLoginRes;
 import com.cafeminsu.domain.user.dto.RefreshRes;
 import com.cafeminsu.domain.user.dto.SignupReq;
 import com.cafeminsu.domain.user.dto.SignupRes;
@@ -49,6 +51,16 @@ public class UserController {
     @PostMapping("/kakao-login")
     public BaseResponse<KakaoLoginRes> kakaoLogin(@Valid @RequestBody KakaoLoginReq req) {
         return BaseResponse.success(userService.kakaoLogin(req.accessToken()));
+    }
+
+    /* 1-2. 점주 로그인 (ID/PW) */
+    @SecurityRequirements
+    @Operation(summary = "점주 로그인",
+            description = "사전 등록된 점주 계정의 loginId/password로 JWT 발급. " +
+                    "카카오 로그인과 동일한 형태의 토큰을 반환하므로 이후 OWNER API에 그대로 사용.")
+    @PostMapping("/owner-login")
+    public BaseResponse<OwnerLoginRes> ownerLogin(@Valid @RequestBody OwnerLoginReq req) {
+        return BaseResponse.success(userService.ownerLogin(req.loginId(), req.password()));
     }
 
     /* 2. 회원가입 (닉네임/프로필 설정) */

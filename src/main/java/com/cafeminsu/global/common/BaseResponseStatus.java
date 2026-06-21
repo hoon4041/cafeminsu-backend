@@ -52,6 +52,7 @@ public enum BaseResponseStatus {
     NICKNAME_DUPLICATED(HttpStatus.CONFLICT, 2201, "이미 사용 중인 닉네임입니다."),
     KAKAO_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, 2202, "카카오 로그인에 실패했습니다."),
     NOT_AN_OWNER(HttpStatus.FORBIDDEN, 2203, "점주 권한이 없습니다."),
+    OWNER_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, 2204, "아이디 또는 비밀번호가 올바르지 않습니다."),
 
     // ===== Store (2300~2399) =====
     STORE_NOT_FOUND(HttpStatus.NOT_FOUND, 2300, "존재하지 않는 매장입니다."),
