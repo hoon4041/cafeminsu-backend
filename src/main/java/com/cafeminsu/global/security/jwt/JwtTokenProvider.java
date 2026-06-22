@@ -109,9 +109,4 @@ public class JwtTokenProvider {
     public String getRole(String token) {
         return parse(token).get("role", String.class);
     }
-
-    public long getRemainingMillis(String token) {
-        Date expiry = parse(token).getExpiration();
-        return Math.max(0, expiry.getTime() - System.currentTimeMillis());
-    }
 }

@@ -5,14 +5,14 @@ O2O 카페 플랫폼 — 음성 AI 주문 · 스탬프 · 기프티콘
 ## 기술 스택
 
 - Spring Boot 3.3.5 / Java 17 / Gradle
-- MySQL 8 (JPA) · Redis 7
+- MySQL 8 (JPA)
 - Spring Security + JWT (jjwt 0.12.x)
 - OpenAPI 3 (Swagger UI)
 
 ## 빠른 시작
 
 ```bash
-# 1) 인프라 띄우기 (MySQL + Redis)
+# 1) 인프라 띄우기 (MySQL)
 cp ~/path/to/카페민수_DDL.sql db/init/01_schema.sql   # DDL 자동 실행용
 docker compose up -d
 
@@ -37,13 +37,12 @@ src/main/java/com/cafeminsu/
 ├── CafeminsuApplication.java
 ├── global/
 │   ├── common/         # BaseResponse, BaseResponseStatus, BaseEntity, HealthController
-│   ├── config/         # Security, Web (CORS·Resolver), Swagger, Redis
+│   ├── config/         # Security, Web (CORS·Resolver), Swagger
 │   ├── exception/      # BaseException, GlobalExceptionHandler
 │   └── security/
 │       ├── jwt/        # JwtTokenProvider, JwtAuthenticationFilter, EntryPoint
 │       ├── LoginUserId.java
-│       ├── LoginUserIdArgumentResolver.java
-│       └── TokenBlacklistService.java
+│       └── LoginUserIdArgumentResolver.java
 └── domain/             # 도메인별 controller/service/repository/entity/dto
     ├── user/
     ├── store/
@@ -86,7 +85,7 @@ src/main/java/com/cafeminsu/
 
 - `Authorization: Bearer <AccessToken>` 헤더로 인증
 - Access Token: 1시간 / Refresh Token: 14일
-- 로그아웃 시 Access Token은 Redis 블랙리스트에 만료시까지 저장됨
+- 로그아웃 시 서버는 Refresh Token만 삭제(재발급 차단). Access Token은 클라이언트가 폐기하며 만료시간이 지나면 자동 무효화됨
 - 컨트롤러에서 인증된 사용자 ID 꺼내쓰기:
   ```java
   @GetMapping("/api/user/profile")

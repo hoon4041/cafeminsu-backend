@@ -22,7 +22,6 @@ import com.cafeminsu.global.security.LoginUserId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -74,12 +73,10 @@ public class UserController {
 
     /* 3. 로그아웃 */
     @Operation(summary = "로그아웃",
-            description = "Access Token 블랙리스트 등록 + Refresh Token DB에서 삭제.")
+            description = "Refresh Token을 DB에서 삭제. Access Token은 클라이언트가 폐기하며 만료 시 자동 무효화.")
     @PostMapping("/logout")
-    public BaseResponse<Void> logout(HttpServletRequest request,
-                                     @RequestHeader(value = "Refresh-Token", required = false) String refreshToken) {
-        String accessToken = extractBearerToken(request);
-        userService.logout(accessToken, refreshToken);
+    public BaseResponse<Void> logout(@RequestHeader(value = "Refresh-Token", required = false) String refreshToken) {
+        userService.logout(refreshToken);
         return BaseResponse.success();
     }
 
@@ -156,14 +153,5 @@ public class UserController {
     @PostMapping("/become-owner")
     public BaseResponse<BecomeOwnerRes> becomeOwner(@LoginUserId Long userId) {
         return BaseResponse.success(userService.becomeOwner(userId));
-    }
-
-    /* ---------------- helpers ---------------- */
-    private String extractBearerToken(HttpServletRequest request) {
-        String header = request.getHeader("Authorization");
-        if (header != null && header.startsWith("Bearer ")) {
-            return header.substring("Bearer ".length());
-        }
-        return null;
     }
 }

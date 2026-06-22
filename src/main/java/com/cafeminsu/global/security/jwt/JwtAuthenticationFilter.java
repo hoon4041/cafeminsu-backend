@@ -2,7 +2,6 @@ package com.cafeminsu.global.security.jwt;
 
 import com.cafeminsu.global.common.BaseResponseStatus;
 import com.cafeminsu.global.exception.BaseException;
-import com.cafeminsu.global.security.TokenBlacklistService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -35,7 +34,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final TokenBlacklistService blacklistService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -44,10 +42,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String token = resolveToken(request);
             if (StringUtils.hasText(token)) {
-                // 블랙리스트(로그아웃) 체크
-                if (blacklistService.isBlacklisted(token)) {
-                    throw new BaseException(BaseResponseStatus.BLACKLISTED_TOKEN);
-                }
                 Claims claims = jwtTokenProvider.parse(token);
 
                 // Refresh 토큰으로 API 호출 시도 차단

@@ -5,11 +5,5 @@ spring:
     password: ${DB_PASSWORD:cafeminsu}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      # password: ${REDIS_PASSWORD:}   # 로컬은 비밀번호 없음
-
   jpa:
     show-sql: true
