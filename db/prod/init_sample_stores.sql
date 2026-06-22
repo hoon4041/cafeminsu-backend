@@ -186,3 +186,37 @@ SET image_url = CONCAT('/imgs/menu/', CASE name
 END, '.svg')
 WHERE store_id IN (SELECT id FROM stores WHERE owner_id = @owner_id)
   AND (image_url IS NULL OR image_url = '');
+
+-- 4) 메뉴 옵션 (카테고리 기반, 없을 때만 삽입) ----------------------------------
+--    메뉴 id는 매장마다 auto_increment라 직접 못 박으므로, 카테고리로 매칭해 일괄 INSERT.
+--    템플릿의 categories(콤마 목록)에 메뉴 category가 포함되면 해당 옵션을 단다.
+--      음료(커피/라떼/에이드/티/스무디): 사이즈 + 온도, 커피·라떼는 샷, 라떼는 시럽까지.
+--      디저트: 옵션 없음.
+--    비파괴·멱등: 같은 (menu_id, option_group, option_name)이 이미 있으면 건너뛴다.
+--    menu_options.created_at/updated_at도 DB 기본값이 없어 명시적으로 채운다.
+INSERT INTO menu_options (menu_id, option_group, option_name, additional_price, is_default, created_at, updated_at)
+SELECT m.id, t.option_group, t.option_name, t.additional_price, t.is_default, NOW(), NOW()
+FROM menus m
+JOIN stores s ON s.id = m.store_id AND s.owner_id = @owner_id
+JOIN (
+    -- 온도: 핫 음료군은 HOT 기본, 콜드 음료군(에이드/스무디)은 ICE 고정
+    SELECT '커피,라떼,티'              AS categories, '온도'   AS option_group, 'HOT'     AS option_name, 0   AS additional_price, 1 AS is_default
+    UNION ALL SELECT '커피,라떼,티',               '온도',   'ICE',     0,   0
+    UNION ALL SELECT '에이드,스무디',              '온도',   'ICE',     0,   1
+    -- 사이즈: 모든 음료
+    UNION ALL SELECT '커피,라떼,에이드,티,스무디', '사이즈', 'Regular', 0,   1
+    UNION ALL SELECT '커피,라떼,에이드,티,스무디', '사이즈', 'Large',   500, 0
+    -- 샷: 커피·라떼
+    UNION ALL SELECT '커피,라떼',                  '샷',     '기본',    0,   1
+    UNION ALL SELECT '커피,라떼',                  '샷',     '샷 추가', 500, 0
+    -- 시럽: 라떼
+    UNION ALL SELECT '라떼',                       '시럽',   '없음',    0,   1
+    UNION ALL SELECT '라떼',                       '시럽',   '바닐라',  300, 0
+    UNION ALL SELECT '라떼',                       '시럽',   '헤이즐넛', 300, 0
+) t ON FIND_IN_SET(m.category, t.categories)
+WHERE NOT EXISTS (
+    SELECT 1 FROM menu_options mo
+    WHERE mo.menu_id = m.id
+      AND mo.option_group = t.option_group
+      AND mo.option_name = t.option_name
+);
