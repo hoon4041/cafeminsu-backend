@@ -66,7 +66,6 @@ public enum BaseResponseStatus {
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, 2500, "존재하지 않는 주문입니다."),
     INVALID_ORDER_STATUS(HttpStatus.BAD_REQUEST, 2501, "주문 상태가 올바르지 않습니다."),
     ORDER_CANNOT_BE_CANCELLED(HttpStatus.BAD_REQUEST, 2502, "취소할 수 없는 주문입니다."),
-    VOICE_PARSING_FAILED(HttpStatus.BAD_REQUEST, 2503, "음성 주문 파싱에 실패했습니다."),
 
     // ===== Payment (2600~2699) =====
     PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND, 2600, "존재하지 않는 결제입니다."),

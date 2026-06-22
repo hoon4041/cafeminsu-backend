@@ -7,8 +7,6 @@ import com.cafeminsu.domain.order.dto.OrderDetailRes;
 import com.cafeminsu.domain.order.dto.OrderListItemRes;
 import com.cafeminsu.domain.order.dto.OrderStatusRes;
 import com.cafeminsu.domain.order.dto.StoreOrderItemRes;
-import com.cafeminsu.domain.order.dto.VoiceOrderReq;
-import com.cafeminsu.domain.order.dto.VoiceOrderRes;
 import com.cafeminsu.domain.order.entity.OrderStatus;
 import com.cafeminsu.domain.order.service.OrderService;
 import com.cafeminsu.global.common.BaseResponse;
@@ -45,16 +43,7 @@ public class OrderController {
         return BaseResponse.success(orderService.createOrder(userId, req));
     }
 
-    /* 2. 음성 주문 파싱 */
-    @Operation(summary = "음성 주문 파싱",
-            description = "SpeechRecognizer 텍스트를 파싱해서 메뉴 후보 반환. " +
-                    "(현재 MVP: 키워드 매칭. 추후 LLM 연동)")
-    @PostMapping("/api/orders/voice")
-    public BaseResponse<VoiceOrderRes> voice(@Valid @RequestBody VoiceOrderReq req) {
-        return BaseResponse.success(orderService.parseVoiceOrder(req));
-    }
-
-    /* 3. 내 주문 내역 */
+    /* 2. 내 주문 내역 */
     @Operation(summary = "내 주문 내역", description = "status 필터 옵션 (PENDING/ACCEPTED/READY/DONE/CANCELLED)")
     @GetMapping("/api/orders/my")
     public BaseResponse<List<OrderListItemRes>> myOrders(

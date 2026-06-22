@@ -11,8 +11,6 @@ import com.cafeminsu.domain.order.dto.OrderDetailRes;
 import com.cafeminsu.domain.order.dto.OrderListItemRes;
 import com.cafeminsu.domain.order.dto.OrderStatusRes;
 import com.cafeminsu.domain.order.dto.StoreOrderItemRes;
-import com.cafeminsu.domain.order.dto.VoiceOrderReq;
-import com.cafeminsu.domain.order.dto.VoiceOrderRes;
 import com.cafeminsu.domain.order.entity.Order;
 import com.cafeminsu.domain.order.entity.OrderItem;
 import com.cafeminsu.domain.order.entity.OrderItemOption;
@@ -52,7 +50,6 @@ public class OrderService {
     private final MenuRepository menuRepository;
     private final MenuOptionRepository menuOptionRepository;
     private final OrderNumberGenerator orderNumberGenerator;
-    private final VoiceOrderParser voiceOrderParser;
 
     // 도메인 연동 — 상태 전이 시 자동 호출
     private final com.cafeminsu.domain.notification.service.NotificationService notificationService;
@@ -143,18 +140,7 @@ public class OrderService {
     }
 
     /* =========================================================
-     * 2) 음성 주문 파싱
-     * ========================================================= */
-    public VoiceOrderRes parseVoiceOrder(VoiceOrderReq req) {
-        // 매장 존재 확인
-        if (!storeRepository.existsById(req.storeId())) {
-            throw new BaseException(BaseResponseStatus.STORE_NOT_FOUND);
-        }
-        return voiceOrderParser.parse(req.storeId(), req.audioText());
-    }
-
-    /* =========================================================
-     * 3) 내 주문 내역
+     * 2) 내 주문 내역
      * ========================================================= */
     public List<OrderListItemRes> getMyOrders(Long userId, OrderStatus status, int page, int size) {
         var pageable = PageRequest.of(page, size);
