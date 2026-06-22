@@ -26,7 +26,7 @@ public class SwaggerConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("카페민수 API")
-                        .description("O2O 카페 플랫폼 — 음성 AI 주문 · 스탬프 · 기프티콘")
+                        .description("O2O 카페 플랫폼 — 스탬프 · 기프티콘")
                         .version("v0.0.1"))
                 .components(new Components()
                         .addSecuritySchemes(BEARER_AUTH,
