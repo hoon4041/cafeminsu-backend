@@ -29,7 +29,6 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
     // DB driver (mysql-connector-j is the modern artifact; mysql:mysql-connector-java is deprecated)
     runtimeOnly 'com.mysql:mysql-connector-j'

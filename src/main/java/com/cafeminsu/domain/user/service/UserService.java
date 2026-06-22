@@ -20,7 +20,6 @@ import com.cafeminsu.domain.user.repository.RefreshTokenRepository;
 import com.cafeminsu.domain.user.repository.UserRepository;
 import com.cafeminsu.global.common.BaseResponseStatus;
 import com.cafeminsu.global.exception.BaseException;
-import com.cafeminsu.global.security.TokenBlacklistService;
 import com.cafeminsu.global.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +39,6 @@ public class UserService {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
-    private final TokenBlacklistService tokenBlacklistService;
     private final KakaoOAuthClient kakaoOAuthClient;
     private final PasswordEncoder passwordEncoder;
 
@@ -133,12 +131,10 @@ public class UserService {
      * 3) 로그아웃
      * ========================================================= */
     @Transactional
-    public void logout(String accessToken, String refreshToken) {
-        // Access Token은 만료까지 블랙리스트
-        long remainingMs = jwtTokenProvider.getRemainingMillis(accessToken);
-        tokenBlacklistService.blacklist(accessToken, remainingMs);
-
-        // Refresh Token DB에서 삭제 (해당 디바이스만)
+    public void logout(String refreshToken) {
+        // 서버 측 access token 무효화는 두지 않는다(블랙리스트 제거). 클라이언트가 access token을
+        // 폐기하고, access token은 만료시간이 지나면 자동으로 무효가 된다.
+        // Refresh Token만 DB에서 삭제 (해당 디바이스 재발급 차단)
         if (refreshToken != null && !refreshToken.isBlank()) {
             refreshTokenRepository.deleteByToken(refreshToken);
         }

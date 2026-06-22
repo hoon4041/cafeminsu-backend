@@ -43,7 +43,6 @@ public enum BaseResponseStatus {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, 2100, "인증이 필요합니다."),
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, 2101, "유효하지 않은 토큰입니다."),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, 2102, "만료된 토큰입니다."),
-    BLACKLISTED_TOKEN(HttpStatus.UNAUTHORIZED, 2103, "로그아웃된 토큰입니다."),
     REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, 2104, "리프레시 토큰이 없습니다."),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, 2105, "권한이 없습니다."),
 
