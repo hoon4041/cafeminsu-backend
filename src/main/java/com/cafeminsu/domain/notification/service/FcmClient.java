@@ -9,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+
 /**
  * Firebase Cloud Messaging 발송 클라이언트.
  *
@@ -25,7 +27,11 @@ public class FcmClient {
 
     private final ObjectProvider<FirebaseMessaging> firebaseMessagingProvider;
 
-    public void send(String fcmToken, String title, String body) {
+    /**
+     * @param data 앱이 푸시 탭 시 화면 분기에 쓰는 키-값 (예: type, relatedEntityId).
+     *             FCM data 값은 문자열만 허용되며, null 값은 제외된다.
+     */
+    public void send(String fcmToken, String title, String body, Map<String, String> data) {
         if (fcmToken == null || fcmToken.isBlank()) {
             log.debug("[FCM] skip — token not registered");
             return;
@@ -33,18 +39,23 @@ public class FcmClient {
 
         FirebaseMessaging messaging = firebaseMessagingProvider.getIfAvailable();
         if (messaging == null) {
-            log.info("[FCM:mock] send token={} title='{}' body='{}'",
-                    truncate(fcmToken, 16), title, body);
+            log.info("[FCM:mock] send token={} title='{}' body='{}' data={}",
+                    truncate(fcmToken, 16), title, body, data);
             return;
         }
 
-        Message message = Message.builder()
+        Message.Builder builder = Message.builder()
                 .setToken(fcmToken)
                 .setNotification(Notification.builder()
                         .setTitle(title)
                         .setBody(body)
-                        .build())
-                .build();
+                        .build());
+        if (data != null) {
+            data.forEach((k, v) -> {
+                if (v != null) builder.putData(k, v);
+            });
+        }
+        Message message = builder.build();
         try {
             String messageId = messaging.send(message);
             log.info("[FCM] sent token={} messageId={}", truncate(fcmToken, 16), messageId);

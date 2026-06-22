@@ -16,7 +16,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -63,7 +65,7 @@ public class NotificationService {
 
     /** 공통 발송 — DB 저장 + FCM 발송 */
     private void send(Long userId, NotificationType type, String title, String body, Long relatedEntityId) {
-        notificationRepository.save(Notification.builder()
+        Notification saved = notificationRepository.save(Notification.builder()
                 .userId(userId)
                 .type(type)
                 .title(title)
@@ -71,10 +73,18 @@ public class NotificationService {
                 .relatedEntityId(relatedEntityId)
                 .build());
 
+        // 앱이 푸시 탭 시 화면 분기에 쓰는 data 페이로드 (FCM 값은 문자열만 허용)
+        Map<String, String> data = new HashMap<>();
+        data.put("type", type.name());
+        data.put("notificationId", String.valueOf(saved.getId()));
+        if (relatedEntityId != null) {
+            data.put("relatedEntityId", String.valueOf(relatedEntityId));
+        }
+
         String fcmToken = userRepository.findById(userId)
                 .map(User::getFcmToken).orElse(null);
         try {
-            fcmClient.send(fcmToken, title, body);
+            fcmClient.send(fcmToken, title, body, data);
         } catch (Exception e) {
             // FCM 실패는 알림 저장에 영향 주지 않음
             log.warn("[Notification] FCM send failed userId={}: {}", userId, e.getMessage());
