@@ -28,7 +28,7 @@ class ImageFlowTest extends IntegrationTestSupport {
                         .file(pngFile())
                         .header("Authorization", fixtures.authHeader(owner)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.imageUrl").value(startsWith("/imgs/menu/uploads/")));
+                .andExpect(jsonPath("$.imageUrl").value(startsWith("/imgs/menu/uploads/")));
     }
 
     @Test
@@ -63,7 +63,7 @@ class ImageFlowTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andReturn();
         String imageUrl = objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/imageUrl").asText();
+                .at("/imageUrl").asText();
 
         mockMvc.perform(get(imageUrl))
                 .andExpect(status().isOk());
@@ -78,6 +78,6 @@ class ImageFlowTest extends IntegrationTestSupport {
         mockMvc.perform(multipart("/api/images/menu")
                         .file(gif)
                         .header("Authorization", fixtures.authHeader(owner)))
-                .andExpect(jsonPath("$.code").value(2006));   // UNSUPPORTED_IMAGE_TYPE
+                .andExpect(jsonPath("$.code").value("UNSUPPORTED_IMAGE_TYPE"));
     }
 }

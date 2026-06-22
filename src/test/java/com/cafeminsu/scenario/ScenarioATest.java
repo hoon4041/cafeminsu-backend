@@ -37,7 +37,7 @@ class ScenarioATest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andReturn();
         long storeId = objectMapper.readTree(storeRes.getResponse().getContentAsString())
-                .at("/result/storeId").asLong();
+                .at("/storeId").asLong();
 
         /* === 2. 메뉴 + 옵션 === */
         MvcResult menuRes = mockMvc.perform(post("/api/stores/" + storeId + "/menus")
@@ -47,7 +47,7 @@ class ScenarioATest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andReturn();
         long menuId = objectMapper.readTree(menuRes.getResponse().getContentAsString())
-                .at("/result/menuId").asLong();
+                .at("/menuId").asLong();
 
         MvcResult optRes = mockMvc.perform(post("/api/menus/" + menuId + "/options")
                         .header("Authorization", fixtures.authHeader(owner))
@@ -56,11 +56,11 @@ class ScenarioATest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andReturn();
         long optionId = objectMapper.readTree(optRes.getResponse().getContentAsString())
-                .at("/result/optionId").asLong();
+                .at("/optionId").asLong();
 
         /* === 3. 고객이 메뉴 둘러보기 (비로그인 OK) === */
         mockMvc.perform(get("/api/stores/" + storeId + "/menus"))
-                .andExpect(jsonPath("$.result[0].name").value("아메리카노"));
+                .andExpect(jsonPath("$[0].name").value("아메리카노"));
 
         /* === 4. 주문 생성 === */
         String orderBody = String.format("""
@@ -76,11 +76,11 @@ class ScenarioATest extends IntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(orderBody))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.totalAmount").value(10000))   // (4500+500)*2
-                .andExpect(jsonPath("$.result.status").value("PENDING"))
+                .andExpect(jsonPath("$.totalAmount").value(10000))   // (4500+500)*2
+                .andExpect(jsonPath("$.status").value("PENDING"))
                 .andReturn();
         long orderId = objectMapper.readTree(orderRes.getResponse().getContentAsString())
-                .at("/result/orderId").asLong();
+                .at("/orderId").asLong();
 
         /* === 5. 결제 — prepare → verify === */
         MvcResult prepareRes = mockMvc.perform(post("/api/payments/prepare")
@@ -90,37 +90,37 @@ class ScenarioATest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andReturn();
         String merchantUid = objectMapper.readTree(prepareRes.getResponse().getContentAsString())
-                .at("/result/merchantUid").asText();
+                .at("/merchantUid").asText();
 
         mockMvc.perform(post("/api/payments/verify")
                         .header("Authorization", fixtures.authHeader(customer))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format(
                                 "{\"impUid\":\"imp_test_e2e\",\"merchantUid\":\"%s\"}", merchantUid)))
-                .andExpect(jsonPath("$.result.status").value("PAID"));
+                .andExpect(jsonPath("$.status").value("PAID"));
 
         /* === 6. 점주가 매장 주문 목록 확인 === */
         mockMvc.perform(get("/api/stores/" + storeId + "/orders")
                         .header("Authorization", fixtures.authHeader(owner)))
-                .andExpect(jsonPath("$.result[0].orderId").value((int) orderId))
-                .andExpect(jsonPath("$.result[0].status").value("PENDING"));
+                .andExpect(jsonPath("$[0].orderId").value((int) orderId))
+                .andExpect(jsonPath("$[0].status").value("PENDING"));
 
         /* === 7. 점주 상태 전이: 수락 → 준비완료 → 픽업완료 === */
         mockMvc.perform(patch("/api/orders/" + orderId + "/accept")
                         .header("Authorization", fixtures.authHeader(owner)))
-                .andExpect(jsonPath("$.result.status").value("ACCEPTED"));
+                .andExpect(jsonPath("$.status").value("ACCEPTED"));
 
         mockMvc.perform(patch("/api/orders/" + orderId + "/ready")
                         .header("Authorization", fixtures.authHeader(owner)))
-                .andExpect(jsonPath("$.result.status").value("READY"));
+                .andExpect(jsonPath("$.status").value("READY"));
 
         mockMvc.perform(patch("/api/orders/" + orderId + "/complete")
                         .header("Authorization", fixtures.authHeader(owner)))
-                .andExpect(jsonPath("$.result.status").value("DONE"));
+                .andExpect(jsonPath("$.status").value("DONE"));
 
         /* === 8. 매장 정산 확인 === */
         mockMvc.perform(get("/api/stores/" + storeId + "/payments")
                         .header("Authorization", fixtures.authHeader(owner)))
-                .andExpect(jsonPath("$.result.total").value(10000));
+                .andExpect(jsonPath("$.total").value(10000));
     }
 }

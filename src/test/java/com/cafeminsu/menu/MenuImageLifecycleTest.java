@@ -91,7 +91,7 @@ class MenuImageLifecycleTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/imageUrl").asText();
+                .at("/imageUrl").asText();
     }
 
     private long createStore(User owner) throws Exception {
@@ -102,7 +102,7 @@ class MenuImageLifecycleTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/storeId").asLong();
+                .at("/storeId").asLong();
     }
 
     private long createMenuWithImage(User owner, long storeId, String name, int price, String imageUrl) throws Exception {
@@ -115,6 +115,6 @@ class MenuImageLifecycleTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/menuId").asLong();
+                .at("/menuId").asLong();
     }
 }

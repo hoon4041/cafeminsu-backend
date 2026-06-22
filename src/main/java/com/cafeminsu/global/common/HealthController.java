@@ -16,11 +16,11 @@ public class HealthController {
     @SecurityRequirements   // 이 엔드포인트는 JWT 불필요
     @Operation(summary = "헬스체크")
     @GetMapping("/health")
-    public BaseResponse<Map<String, Object>> health() {
-        return BaseResponse.success(Map.of(
+    public Map<String, Object> health() {
+        return Map.of(
                 "status", "UP",
                 "service", "cafeminsu",
                 "time", System.currentTimeMillis()
-        ));
+        );
     }
 }

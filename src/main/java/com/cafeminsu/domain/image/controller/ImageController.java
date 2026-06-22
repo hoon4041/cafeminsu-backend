@@ -1,7 +1,6 @@
 package com.cafeminsu.domain.image.controller;
 
 import com.cafeminsu.domain.image.dto.ImageUploadRes;
-import com.cafeminsu.global.common.BaseResponse;
 import com.cafeminsu.global.storage.FileStorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,7 +20,7 @@ public class ImageController {
     @Operation(summary = "메뉴 이미지 업로드",
             description = "점주만 가능. multipart/form-data, 파트명 file. 반환된 imageUrl을 메뉴 등록/수정 imageUrl에 사용.")
     @PostMapping("/api/images/menu")
-    public BaseResponse<ImageUploadRes> uploadMenuImage(@RequestParam("file") MultipartFile file) {
-        return BaseResponse.success(new ImageUploadRes(fileStorageService.store(file)));
+    public ImageUploadRes uploadMenuImage(@RequestParam("file") MultipartFile file) {
+        return new ImageUploadRes(fileStorageService.store(file));
     }
 }

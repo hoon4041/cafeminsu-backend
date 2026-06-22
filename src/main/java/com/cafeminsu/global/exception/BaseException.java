@@ -9,7 +9,7 @@ import lombok.Getter;
  * 사용 예:
  *   throw new BaseException(BaseResponseStatus.USER_NOT_FOUND);
  *
- * GlobalExceptionHandler가 가로채서 BaseResponse 형태로 응답합니다.
+ * GlobalExceptionHandler가 가로채서 ErrorResponse 형태로 응답합니다.
  */
 @Getter
 public class BaseException extends RuntimeException {

@@ -2,7 +2,6 @@ package com.cafeminsu.domain.recommendation.controller;
 
 import com.cafeminsu.domain.recommendation.dto.TodayRecommendationRes;
 import com.cafeminsu.domain.recommendation.service.RecommendationService;
-import com.cafeminsu.global.common.BaseResponse;
 import com.cafeminsu.global.security.LoginUserId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,8 +26,8 @@ public class RecommendationController {
     @Operation(summary = "오늘의 메뉴 추천",
             description = "날씨·시간·주문이력을 반영한 LLM 추천 2건. menuId로 메뉴 상세를 이어 조회 가능.")
     @GetMapping("/api/stores/{storeId}/recommendations/today")
-    public BaseResponse<TodayRecommendationRes> recommendToday(@LoginUserId Long userId,
-                                                               @PathVariable Long storeId) {
-        return BaseResponse.success(recommendationService.recommendToday(userId, storeId));
+    public TodayRecommendationRes recommendToday(@LoginUserId Long userId,
+                                                 @PathVariable Long storeId) {
+        return recommendationService.recommendToday(userId, storeId);
     }
 }

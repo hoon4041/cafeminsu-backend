@@ -5,7 +5,6 @@ import com.cafeminsu.domain.user.entity.User;
 import com.cafeminsu.domain.user.entity.UserRole;
 import com.cafeminsu.domain.user.repository.RefreshTokenRepository;
 import com.cafeminsu.domain.user.repository.UserRepository;
-import com.cafeminsu.global.common.BaseResponse;
 import com.cafeminsu.global.security.jwt.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
@@ -63,7 +62,7 @@ public class DevController {
                     """)
     @PostMapping("/login")
     @Transactional
-    public BaseResponse<DevLoginRes> login(@Valid @RequestBody DevLoginReq req) {
+    public DevLoginRes login(@Valid @RequestBody DevLoginReq req) {
         UserRole role = req.role() != null ? req.role() : UserRole.CUSTOMER;
         // 가짜 kakao_id로 user 식별. 같은 nickname → 같은 fakeKakaoId → 같은 user
         String fakeKakaoId = "dev-" + req.nickname();
@@ -92,13 +91,13 @@ public class DevController {
                 .expiresAt(LocalDateTime.now().plusSeconds(refreshValiditySeconds))
                 .build());
 
-        return BaseResponse.success(new DevLoginRes(
+        return new DevLoginRes(
                 user.getId(),
                 user.getNickname(),
                 user.getRole(),
                 accessToken,
                 refreshToken
-        ));
+        );
     }
 
     public record DevLoginReq(
