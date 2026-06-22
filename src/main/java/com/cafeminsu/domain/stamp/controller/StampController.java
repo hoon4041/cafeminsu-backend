@@ -3,7 +3,6 @@ package com.cafeminsu.domain.stamp.controller;
 import com.cafeminsu.domain.stamp.dto.StampDetailRes;
 import com.cafeminsu.domain.stamp.dto.StampSummaryRes;
 import com.cafeminsu.domain.stamp.service.StampService;
-import com.cafeminsu.global.common.BaseResponse;
 import com.cafeminsu.global.security.LoginUserId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,15 +25,15 @@ public class StampController {
     /* 1. 내 스탬프 목록 — 매장별 누적 */
     @Operation(summary = "내 스탬프 목록")
     @GetMapping
-    public BaseResponse<List<StampSummaryRes>> myStamps(@LoginUserId Long userId) {
-        return BaseResponse.success(stampService.getMyStamps(userId));
+    public List<StampSummaryRes> myStamps(@LoginUserId Long userId) {
+        return stampService.getMyStamps(userId);
     }
 
     /* 2. 특정 매장 스탬프 + 적립 이력 */
     @Operation(summary = "특정 매장 스탬프 상세", description = "적립 이력 포함")
     @GetMapping("/{storeId}")
-    public BaseResponse<StampDetailRes> storeStamp(@LoginUserId Long userId,
-                                                   @PathVariable Long storeId) {
-        return BaseResponse.success(stampService.getStoreStamp(userId, storeId));
+    public StampDetailRes storeStamp(@LoginUserId Long userId,
+                                     @PathVariable Long storeId) {
+        return stampService.getStoreStamp(userId, storeId);
     }
 }

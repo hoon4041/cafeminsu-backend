@@ -23,18 +23,18 @@ class PaymentFlowTest extends IntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format("{\"orderId\":%d,\"cardAmount\":10000}", s.orderId)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.merchantUid").isString())
-                .andExpect(jsonPath("$.result.amount").value(10000))
+                .andExpect(jsonPath("$.merchantUid").isString())
+                .andExpect(jsonPath("$.amount").value(10000))
                 .andReturn();
         String merchantUid = objectMapper.readTree(prepareRes.getResponse().getContentAsString())
-                .at("/result/merchantUid").asText();
+                .at("/merchantUid").asText();
 
         // 2) verify
         mockMvc.perform(post("/api/payments/verify")
                         .header("Authorization", fixtures.authHeader(s.customer))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format("{\"impUid\":\"imp_test_001\",\"merchantUid\":\"%s\"}", merchantUid)))
-                .andExpect(jsonPath("$.result.status").value("PAID"));
+                .andExpect(jsonPath("$.status").value("PAID"));
     }
 
     @Test
@@ -49,7 +49,7 @@ class PaymentFlowTest extends IntegrationTestSupport {
                                 "{\"orderId\":%d,\"useGifticonId\":999,\"gifticonAmount\":3000,\"cardAmount\":7000}",
                                 s.orderId)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.amount").value(7000));   // card amount만 응답
+                .andExpect(jsonPath("$.amount").value(7000));   // card amount만 응답
     }
 
     @Test
@@ -64,7 +64,7 @@ class PaymentFlowTest extends IntegrationTestSupport {
                         .content(String.format(
                                 "{\"orderId\":%d,\"useGifticonId\":999,\"gifticonAmount\":3000,\"cardAmount\":6000}",
                                 s.orderId)))
-                .andExpect(jsonPath("$.code").value(2603));   // SPLIT_PAYMENT_AMOUNT_INVALID
+                .andExpect(jsonPath("$.code").value("SPLIT_PAYMENT_AMOUNT_INVALID"));
     }
 
     @Test
@@ -78,7 +78,8 @@ class PaymentFlowTest extends IntegrationTestSupport {
                         .header("Authorization", fixtures.authHeader(s.customer))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format("{\"orderId\":%d,\"cardAmount\":10000}", s.orderId)))
-                .andExpect(jsonPath("$.isSuccess").value(false));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_ORDER_STATUS"));
     }
 
     @Test
@@ -92,7 +93,7 @@ class PaymentFlowTest extends IntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format(
                                 "{\"impUid\":\"imp_fail_001\",\"merchantUid\":\"%s\"}", merchantUid)))
-                .andExpect(jsonPath("$.code").value(2601));   // PAYMENT_AMOUNT_MISMATCH
+                .andExpect(jsonPath("$.code").value("PAYMENT_AMOUNT_MISMATCH"));
     }
 
     @Test
@@ -105,7 +106,7 @@ class PaymentFlowTest extends IntegrationTestSupport {
                         .header("Authorization", fixtures.authHeader(intruder))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format("{\"orderId\":%d,\"cardAmount\":10000}", s.orderId)))
-                .andExpect(jsonPath("$.code").value(2105));   // ACCESS_DENIED
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
     }
 
     /* ===== helpers ===== */
@@ -124,7 +125,7 @@ class PaymentFlowTest extends IntegrationTestSupport {
                                 """))
                 .andExpect(status().isOk()).andReturn();
         long storeId = objectMapper.readTree(sRes.getResponse().getContentAsString())
-                .at("/result/storeId").asLong();
+                .at("/storeId").asLong();
 
         // menu (price 5000)
         MvcResult mRes = mockMvc.perform(post("/api/stores/" + storeId + "/menus")
@@ -133,7 +134,7 @@ class PaymentFlowTest extends IntegrationTestSupport {
                         .content("{\"name\":\"라떼\",\"price\":5000}"))
                 .andExpect(status().isOk()).andReturn();
         long menuId = objectMapper.readTree(mRes.getResponse().getContentAsString())
-                .at("/result/menuId").asLong();
+                .at("/menuId").asLong();
 
         // order (quantity 2 → total 10000)
         String orderBody = String.format("""
@@ -150,7 +151,7 @@ class PaymentFlowTest extends IntegrationTestSupport {
                         .content(orderBody))
                 .andExpect(status().isOk()).andReturn();
         long orderId = objectMapper.readTree(oRes.getResponse().getContentAsString())
-                .at("/result/orderId").asLong();
+                .at("/orderId").asLong();
 
         return new Setup(owner, customer, storeId, menuId, orderId);
     }
@@ -162,6 +163,6 @@ class PaymentFlowTest extends IntegrationTestSupport {
                         .content(String.format("{\"orderId\":%d,\"cardAmount\":%d}", s.orderId, cardAmount)))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/merchantUid").asText();
+                .at("/merchantUid").asText();
     }
 }

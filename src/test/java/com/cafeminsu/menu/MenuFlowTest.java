@@ -32,7 +32,7 @@ class MenuFlowTest extends IntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"아메리카노\",\"price\":4500,\"category\":\"커피\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.menuId").isNumber());
+                .andExpect(jsonPath("$.menuId").isNumber());
     }
 
     @Test
@@ -46,7 +46,7 @@ class MenuFlowTest extends IntegrationTestSupport {
                         .header("Authorization", fixtures.authHeader(owner2))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"라떼\",\"price\":5000}"))
-                .andExpect(jsonPath("$.code").value(2301));   // NOT_STORE_OWNER
+                .andExpect(jsonPath("$.code").value("NOT_STORE_OWNER"));
     }
 
     @Test
@@ -59,9 +59,9 @@ class MenuFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/menus/" + menuId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.name").value("아메리카노"))
-                .andExpect(jsonPath("$.result.options[0].group").value("size"))
-                .andExpect(jsonPath("$.result.options[0].additionalPrice").value(500));
+                .andExpect(jsonPath("$.name").value("아메리카노"))
+                .andExpect(jsonPath("$.options[0].group").value("size"))
+                .andExpect(jsonPath("$.options[0].additionalPrice").value(500));
     }
 
     @Test
@@ -78,7 +78,7 @@ class MenuFlowTest extends IntegrationTestSupport {
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/menus/" + menuId))
-                .andExpect(jsonPath("$.result.isAvailable").value(false));
+                .andExpect(jsonPath("$.isAvailable").value(false));
     }
 
     @Test
@@ -93,7 +93,7 @@ class MenuFlowTest extends IntegrationTestSupport {
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/menus/" + menuId))
-                .andExpect(jsonPath("$.code").value(2400));   // MENU_NOT_FOUND
+                .andExpect(jsonPath("$.code").value("MENU_NOT_FOUND"));
     }
 
     /* ===== helpers ===== */
@@ -105,7 +105,7 @@ class MenuFlowTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/storeId").asLong();
+                .at("/storeId").asLong();
     }
 
     private long createMenu(User owner, long storeId, String name, int price) throws Exception {
@@ -116,7 +116,7 @@ class MenuFlowTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/menuId").asLong();
+                .at("/menuId").asLong();
     }
 
     private void addOption(User owner, long menuId, String group, String name, int addPrice) throws Exception {

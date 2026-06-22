@@ -19,8 +19,7 @@ class UserFlowTest extends IntegrationTestSupport {
         mockMvc.perform(get("/api/user/profile")
                         .header("Authorization", fixtures.authHeader(user)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isSuccess").value(true))
-                .andExpect(jsonPath("$.result.role").value("CUSTOMER"));
+                .andExpect(jsonPath("$.role").value("CUSTOMER"));
     }
 
     @Test
@@ -32,8 +31,7 @@ class UserFlowTest extends IntegrationTestSupport {
                         .header("Authorization", fixtures.authHeader(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nickname\":\"새이름\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isSuccess").value(true));
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -50,8 +48,8 @@ class UserFlowTest extends IntegrationTestSupport {
                         .header("Authorization", fixtures.authHeader(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nickname\":\"" + takenNickname + "\"}"))
-                .andExpect(jsonPath("$.isSuccess").value(false))
-                .andExpect(jsonPath("$.code").value(2201));   // DUPLICATED_NICKNAME
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("NICKNAME_DUPLICATED"));
     }
 
     @Test
@@ -67,8 +65,8 @@ class UserFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/user/location")
                         .header("Authorization", fixtures.authHeader(user)))
-                .andExpect(jsonPath("$.result.latitude").value(37.4503))
-                .andExpect(jsonPath("$.result.longitude").value(126.7314));
+                .andExpect(jsonPath("$.latitude").value(37.4503))
+                .andExpect(jsonPath("$.longitude").value(126.7314));
     }
 
     @Test
@@ -79,7 +77,7 @@ class UserFlowTest extends IntegrationTestSupport {
         mockMvc.perform(post("/api/user/become-owner")
                         .header("Authorization", fixtures.authHeader(user)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.role").value("OWNER"));
+                .andExpect(jsonPath("$.role").value("OWNER"));
     }
 
     @Test

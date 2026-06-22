@@ -21,8 +21,8 @@ class StampFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/stamps")
                         .header("Authorization", fixtures.authHeader(s.customer)))
-                .andExpect(jsonPath("$.result[0].storeId").value((int) s.storeId))
-                .andExpect(jsonPath("$.result[0].count").value(1));
+                .andExpect(jsonPath("$[0].storeId").value((int) s.storeId))
+                .andExpect(jsonPath("$[0].count").value(1));
     }
 
     @Test
@@ -34,9 +34,9 @@ class StampFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/stamps/" + s.storeId)
                         .header("Authorization", fixtures.authHeader(s.customer)))
-                .andExpect(jsonPath("$.result.count").value(2))
-                .andExpect(jsonPath("$.result.histories.length()").value(2))
-                .andExpect(jsonPath("$.result.histories[0].earnedCount").value(1));
+                .andExpect(jsonPath("$.count").value(2))
+                .andExpect(jsonPath("$.histories.length()").value(2))
+                .andExpect(jsonPath("$.histories[0].earnedCount").value(1));
     }
 
     @Test
@@ -50,7 +50,7 @@ class StampFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/stamps")
                         .header("Authorization", fixtures.authHeader(s1.customer)))
-                .andExpect(jsonPath("$.result.length()").value(2));
+                .andExpect(jsonPath("$.length()").value(2));
     }
 
     @Test
@@ -62,7 +62,7 @@ class StampFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/stamps/" + storeId)
                         .header("Authorization", fixtures.authHeader(customer)))
-                .andExpect(jsonPath("$.code").value(2800));
+                .andExpect(jsonPath("$.code").value("STAMP_NOT_FOUND"));
     }
 
     @Test
@@ -76,7 +76,7 @@ class StampFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/stamps")
                         .header("Authorization", fixtures.authHeader(s.customer)))
-                .andExpect(jsonPath("$.result[0].count").value(1));
+                .andExpect(jsonPath("$[0].count").value(1));
     }
 
     @Test
@@ -87,8 +87,8 @@ class StampFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/stamps/" + s.storeId)
                         .header("Authorization", fixtures.authHeader(s.customer)))
-                .andExpect(jsonPath("$.result.count").value(3))
-                .andExpect(jsonPath("$.result.histories[0].earnedCount").value(3));
+                .andExpect(jsonPath("$.count").value(3))
+                .andExpect(jsonPath("$.histories[0].earnedCount").value(3));
     }
 
     @Test
@@ -104,7 +104,7 @@ class StampFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/stamps/" + storeId)
                         .header("Authorization", fixtures.authHeader(customer)))
-                .andExpect(jsonPath("$.code").value(2800));
+                .andExpect(jsonPath("$.code").value("STAMP_NOT_FOUND"));
     }
 
     @Test
@@ -116,20 +116,20 @@ class StampFlowTest extends IntegrationTestSupport {
 
         // 10개 → 보상 전환되어 잔여 0
         mockMvc.perform(get("/api/stamps/" + s.storeId).header("Authorization", customerAuth))
-                .andExpect(jsonPath("$.result.count").value(0));
+                .andExpect(jsonPath("$.count").value(0));
 
         // 보상 기프티콘이 사용 가능 목록에 노출 (2000원)
         MvcResult my = mockMvc.perform(get("/api/gifticons/my").header("Authorization", customerAuth))
-                .andExpect(jsonPath("$.result.length()").value(1))
-                .andExpect(jsonPath("$.result[0].balance").value(2000))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].balance").value(2000))
                 .andReturn();
         long gifticonId = objectMapper.readTree(my.getResponse().getContentAsString())
-                .at("/result/0/gifticonId").asLong();
+                .at("/0/gifticonId").asLong();
 
         // 선물(공유) 시도 → 차단 (GIFTICON_NOT_TRANSFERABLE)
         mockMvc.perform(post("/api/gifticons/" + gifticonId + "/share")
                         .header("Authorization", customerAuth))
-                .andExpect(jsonPath("$.code").value(2705));
+                .andExpect(jsonPath("$.code").value("GIFTICON_NOT_TRANSFERABLE"));
     }
 
     /* ===== helpers ===== */
@@ -159,7 +159,7 @@ class StampFlowTest extends IntegrationTestSupport {
                                 """))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/storeId").asLong();
+                .at("/storeId").asLong();
     }
 
     /** 기본은 음료 카테고리('커피')로 생성 — 스탬프 적립 대상. */
@@ -175,7 +175,7 @@ class StampFlowTest extends IntegrationTestSupport {
                                 + ",\"category\":\"" + category + "\"}"))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/menuId").asLong();
+                .at("/menuId").asLong();
     }
 
     private long createOrder(Setup s) throws Exception {
@@ -197,7 +197,7 @@ class StampFlowTest extends IntegrationTestSupport {
                         .content(body))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/orderId").asLong();
+                .at("/orderId").asLong();
     }
 
     /** 점주가 accept → ready → complete 한 번에 진행 (스탬프는 complete 시점에 적립) */

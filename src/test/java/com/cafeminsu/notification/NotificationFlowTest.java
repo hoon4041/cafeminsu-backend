@@ -25,10 +25,10 @@ class NotificationFlowTest extends IntegrationTestSupport {
         // 고객이 알림 확인
         mockMvc.perform(get("/api/notifications")
                         .header("Authorization", fixtures.authHeader(s.customer)))
-                .andExpect(jsonPath("$.result[0].type").value("ORDER"))
-                .andExpect(jsonPath("$.result[0].isRead").value(false))
-                .andExpect(jsonPath("$.result[0].title").value("주문이 수락되었어요"))
-                .andExpect(jsonPath("$.result[0].relatedEntityId").value((int) orderId));
+                .andExpect(jsonPath("$[0].type").value("ORDER"))
+                .andExpect(jsonPath("$[0].isRead").value(false))
+                .andExpect(jsonPath("$[0].title").value("주문이 수락되었어요"))
+                .andExpect(jsonPath("$[0].relatedEntityId").value((int) orderId));
     }
 
     @Test
@@ -43,7 +43,7 @@ class NotificationFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/notifications")
                         .header("Authorization", fixtures.authHeader(s.customer)))
-                .andExpect(jsonPath("$.result.length()").value(2));
+                .andExpect(jsonPath("$.length()").value(2));
     }
 
     @Test
@@ -57,7 +57,7 @@ class NotificationFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/notifications/unread-count")
                         .header("Authorization", fixtures.authHeader(s.customer)))
-                .andExpect(jsonPath("$.result.count").value(2));
+                .andExpect(jsonPath("$.count").value(2));
     }
 
     @Test
@@ -78,7 +78,7 @@ class NotificationFlowTest extends IntegrationTestSupport {
         // 안 읽은 것만 조회 → 0건
         mockMvc.perform(get("/api/notifications?isRead=false")
                         .header("Authorization", fixtures.authHeader(s.customer)))
-                .andExpect(jsonPath("$.result.length()").value(0));
+                .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test
@@ -96,7 +96,7 @@ class NotificationFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/notifications/unread-count")
                         .header("Authorization", fixtures.authHeader(s.customer)))
-                .andExpect(jsonPath("$.result.count").value(0));
+                .andExpect(jsonPath("$.count").value(0));
     }
 
     @Test
@@ -112,7 +112,7 @@ class NotificationFlowTest extends IntegrationTestSupport {
         User stranger = fixtures.createCustomer("타인");
         mockMvc.perform(patch("/api/notifications/" + notificationId + "/read")
                         .header("Authorization", fixtures.authHeader(stranger)))
-                .andExpect(jsonPath("$.code").value(2105));
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
     }
 
     @Test
@@ -127,7 +127,7 @@ class NotificationFlowTest extends IntegrationTestSupport {
         // 본인은 알림 있음
         mockMvc.perform(get("/api/notifications")
                         .header("Authorization", fixtures.authHeader(s.customer)))
-                .andExpect(jsonPath("$.result.length()").value(1));
+                .andExpect(jsonPath("$.length()").value(1));
     }
 
     /* ===== helpers ===== */
@@ -145,7 +145,7 @@ class NotificationFlowTest extends IntegrationTestSupport {
                                 """))
                 .andExpect(status().isOk()).andReturn();
         long storeId = objectMapper.readTree(sRes.getResponse().getContentAsString())
-                .at("/result/storeId").asLong();
+                .at("/storeId").asLong();
 
         MvcResult mRes = mockMvc.perform(post("/api/stores/" + storeId + "/menus")
                         .header("Authorization", fixtures.authHeader(owner))
@@ -153,7 +153,7 @@ class NotificationFlowTest extends IntegrationTestSupport {
                         .content("{\"name\":\"아메리카노\",\"price\":4500}"))
                 .andExpect(status().isOk()).andReturn();
         long menuId = objectMapper.readTree(mRes.getResponse().getContentAsString())
-                .at("/result/menuId").asLong();
+                .at("/menuId").asLong();
 
         return new Setup(owner, customer, storeId, menuId);
     }
@@ -173,7 +173,7 @@ class NotificationFlowTest extends IntegrationTestSupport {
                         .content(body))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/orderId").asLong();
+                .at("/orderId").asLong();
     }
 
     /** 사용자의 가장 최근 알림 id 가져오기 */
@@ -182,6 +182,6 @@ class NotificationFlowTest extends IntegrationTestSupport {
                         .header("Authorization", fixtures.authHeader(user)))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/0/id").asLong();
+                .at("/0/id").asLong();
     }
 }

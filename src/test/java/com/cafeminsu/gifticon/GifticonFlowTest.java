@@ -25,8 +25,8 @@ class GifticonFlowTest extends IntegrationTestSupport {
                                 "{\"amount\":50000,\"receiverId\":%d,\"message\":\"생일축하\"}",
                                 receiver.getId())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.gifticonId").isNumber())
-                .andExpect(jsonPath("$.result.qrCode").isString());
+                .andExpect(jsonPath("$.gifticonId").isNumber())
+                .andExpect(jsonPath("$.qrCode").isString());
     }
 
     @Test
@@ -38,9 +38,9 @@ class GifticonFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/gifticons/received")
                         .header("Authorization", fixtures.authHeader(receiver)))
-                .andExpect(jsonPath("$.result[0].amount").value(50000))
-                .andExpect(jsonPath("$.result[0].balance").value(50000))
-                .andExpect(jsonPath("$.result[0].status").value("UNUSED"));
+                .andExpect(jsonPath("$[0].amount").value(50000))
+                .andExpect(jsonPath("$[0].balance").value(50000))
+                .andExpect(jsonPath("$[0].status").value("UNUSED"));
     }
 
     @Test
@@ -54,8 +54,8 @@ class GifticonFlowTest extends IntegrationTestSupport {
                         .header("Authorization", fixtures.authHeader(sender))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"qrCode\":\"" + issued.qrCode + "\"}"))
-                .andExpect(jsonPath("$.result.isValid").value(true))
-                .andExpect(jsonPath("$.result.balance").value(50000));
+                .andExpect(jsonPath("$.isValid").value(true))
+                .andExpect(jsonPath("$.balance").value(50000));
     }
 
     @Test
@@ -71,8 +71,8 @@ class GifticonFlowTest extends IntegrationTestSupport {
                         .header("Authorization", fixtures.authHeader(receiver))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format("{\"orderId\":%d,\"usedAmount\":4500}", orderId)))
-                .andExpect(jsonPath("$.result.balanceAfter").value(45500))
-                .andExpect(jsonPath("$.result.status").value("PARTIAL"));
+                .andExpect(jsonPath("$.balanceAfter").value(45500))
+                .andExpect(jsonPath("$.status").value("PARTIAL"));
     }
 
     @Test
@@ -88,7 +88,7 @@ class GifticonFlowTest extends IntegrationTestSupport {
                         .header("Authorization", fixtures.authHeader(receiver))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format("{\"orderId\":%d,\"usedAmount\":99999}", orderId)))
-                .andExpect(jsonPath("$.code").value(2703));
+                .andExpect(jsonPath("$.code").value("GIFTICON_INSUFFICIENT_BALANCE"));
     }
 
     @Test
@@ -105,15 +105,15 @@ class GifticonFlowTest extends IntegrationTestSupport {
                         .header("Authorization", fixtures.authHeader(receiver))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format("{\"orderId\":%d,\"usedAmount\":5000}", orderId)))
-                .andExpect(jsonPath("$.result.status").value("USED"))
-                .andExpect(jsonPath("$.result.balanceAfter").value(0));
+                .andExpect(jsonPath("$.status").value("USED"))
+                .andExpect(jsonPath("$.balanceAfter").value(0));
 
         // 추가 사용 시도
         mockMvc.perform(post("/api/gifticons/" + issued.gifticonId + "/use")
                         .header("Authorization", fixtures.authHeader(receiver))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format("{\"orderId\":%d,\"usedAmount\":100}", orderId)))
-                .andExpect(jsonPath("$.code").value(2701));  // GIFTICON_ALREADY_USED
+                .andExpect(jsonPath("$.code").value("GIFTICON_ALREADY_USED"));
     }
 
     @Test
@@ -126,7 +126,7 @@ class GifticonFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/gifticons/" + issued.gifticonId)
                         .header("Authorization", fixtures.authHeader(stranger)))
-                .andExpect(jsonPath("$.code").value(2105));   // ACCESS_DENIED
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
     }
 
     /* ===== helpers ===== */
@@ -141,8 +141,8 @@ class GifticonFlowTest extends IntegrationTestSupport {
                 .andExpect(status().isOk()).andReturn();
         var root = objectMapper.readTree(res.getResponse().getContentAsString());
         return new IssueResult(
-                root.at("/result/gifticonId").asLong(),
-                root.at("/result/qrCode").asText()
+                root.at("/gifticonId").asLong(),
+                root.at("/qrCode").asText()
         );
     }
 
@@ -161,7 +161,7 @@ class GifticonFlowTest extends IntegrationTestSupport {
                                 """))
                 .andExpect(status().isOk()).andReturn();
         long storeId = objectMapper.readTree(sRes.getResponse().getContentAsString())
-                .at("/result/storeId").asLong();
+                .at("/storeId").asLong();
 
         MvcResult mRes = mockMvc.perform(post("/api/stores/" + storeId + "/menus")
                         .header("Authorization", fixtures.authHeader(owner))
@@ -169,7 +169,7 @@ class GifticonFlowTest extends IntegrationTestSupport {
                         .content("{\"name\":\"커피\",\"price\":5000}"))
                 .andExpect(status().isOk()).andReturn();
         long menuId = objectMapper.readTree(mRes.getResponse().getContentAsString())
-                .at("/result/menuId").asLong();
+                .at("/menuId").asLong();
 
         String orderBody = String.format("""
                 {
@@ -185,6 +185,6 @@ class GifticonFlowTest extends IntegrationTestSupport {
                         .content(orderBody))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(oRes.getResponse().getContentAsString())
-                .at("/result/orderId").asLong();
+                .at("/orderId").asLong();
     }
 }

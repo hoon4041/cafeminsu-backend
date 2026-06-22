@@ -34,9 +34,9 @@ class OrderFlowTest extends IntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.totalAmount").value(10000))   // (4500+500)*2
-                .andExpect(jsonPath("$.result.status").value("PENDING"))
-                .andExpect(jsonPath("$.result.orderNumber").isString());
+                .andExpect(jsonPath("$.totalAmount").value(10000))   // (4500+500)*2
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.orderNumber").isString());
     }
 
     @Test
@@ -63,7 +63,7 @@ class OrderFlowTest extends IntegrationTestSupport {
                         .header("Authorization", fixtures.authHeader(ctx.customer))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(jsonPath("$.code").value(2400));   // MENU_NOT_FOUND
+                .andExpect(jsonPath("$.code").value("MENU_NOT_FOUND"));
     }
 
     @Test
@@ -74,15 +74,15 @@ class OrderFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(patch("/api/orders/" + orderId + "/accept")
                         .header("Authorization", fixtures.authHeader(ctx.owner)))
-                .andExpect(jsonPath("$.result.status").value("ACCEPTED"));
+                .andExpect(jsonPath("$.status").value("ACCEPTED"));
 
         mockMvc.perform(patch("/api/orders/" + orderId + "/ready")
                         .header("Authorization", fixtures.authHeader(ctx.owner)))
-                .andExpect(jsonPath("$.result.status").value("READY"));
+                .andExpect(jsonPath("$.status").value("READY"));
 
         mockMvc.perform(patch("/api/orders/" + orderId + "/complete")
                         .header("Authorization", fixtures.authHeader(ctx.owner)))
-                .andExpect(jsonPath("$.result.status").value("DONE"));
+                .andExpect(jsonPath("$.status").value("DONE"));
     }
 
     @Test
@@ -99,7 +99,7 @@ class OrderFlowTest extends IntegrationTestSupport {
         // DONE 상태에서 다시 accept 시도
         mockMvc.perform(patch("/api/orders/" + orderId + "/accept")
                         .header("Authorization", fixtures.authHeader(ctx.owner)))
-                .andExpect(jsonPath("$.code").value(2501));   // INVALID_ORDER_STATUS
+                .andExpect(jsonPath("$.code").value("INVALID_ORDER_STATUS"));
     }
 
     @Test
@@ -111,7 +111,7 @@ class OrderFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(patch("/api/orders/" + orderId + "/accept")
                         .header("Authorization", fixtures.authHeader(otherOwner)))
-                .andExpect(jsonPath("$.code").value(2301));   // NOT_STORE_OWNER
+                .andExpect(jsonPath("$.code").value("NOT_STORE_OWNER"));
     }
 
     @Test
@@ -122,8 +122,8 @@ class OrderFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/orders/" + orderId)
                         .header("Authorization", fixtures.authHeader(ctx.customer)))
-                .andExpect(jsonPath("$.result.orderId").value((int) orderId))
-                .andExpect(jsonPath("$.result.totalAmount").value(10000));
+                .andExpect(jsonPath("$.orderId").value((int) orderId))
+                .andExpect(jsonPath("$.totalAmount").value(10000));
     }
 
     @Test
@@ -135,7 +135,7 @@ class OrderFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/orders/" + orderId)
                         .header("Authorization", fixtures.authHeader(other)))
-                .andExpect(jsonPath("$.code").value(2105));   // ACCESS_DENIED
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
     }
 
     @Test
@@ -146,8 +146,8 @@ class OrderFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(post("/api/orders/reorder/" + previousOrderId)
                         .header("Authorization", fixtures.authHeader(ctx.customer)))
-                .andExpect(jsonPath("$.result.totalAmount").value(10000))
-                .andExpect(jsonPath("$.result.status").value("PENDING"));
+                .andExpect(jsonPath("$.totalAmount").value(10000))
+                .andExpect(jsonPath("$.status").value("PENDING"));
     }
 
     /* ===== helpers ===== */
@@ -170,7 +170,7 @@ class OrderFlowTest extends IntegrationTestSupport {
                                 {"name":"카페","address":"인천","latitude":37.45,"longitude":126.73}
                                 """))
                 .andExpect(status().isOk()).andReturn();
-        return objectMapper.readTree(res.getResponse().getContentAsString()).at("/result/storeId").asLong();
+        return objectMapper.readTree(res.getResponse().getContentAsString()).at("/storeId").asLong();
     }
 
     private long createMenu(User owner, long storeId, String name, int price) throws Exception {
@@ -179,7 +179,7 @@ class OrderFlowTest extends IntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"" + name + "\",\"price\":" + price + "}"))
                 .andExpect(status().isOk()).andReturn();
-        return objectMapper.readTree(res.getResponse().getContentAsString()).at("/result/menuId").asLong();
+        return objectMapper.readTree(res.getResponse().getContentAsString()).at("/menuId").asLong();
     }
 
     private long addOption(User owner, long menuId, String group, String name, int addPrice) throws Exception {
@@ -189,7 +189,7 @@ class OrderFlowTest extends IntegrationTestSupport {
                         .content("{\"optionGroup\":\"" + group + "\",\"optionName\":\"" + name
                                 + "\",\"additionalPrice\":" + addPrice + "}"))
                 .andExpect(status().isOk()).andReturn();
-        return objectMapper.readTree(res.getResponse().getContentAsString()).at("/result/optionId").asLong();
+        return objectMapper.readTree(res.getResponse().getContentAsString()).at("/optionId").asLong();
     }
 
     private long createOrder(TestContext ctx) throws Exception {
@@ -206,6 +206,6 @@ class OrderFlowTest extends IntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk()).andReturn();
-        return objectMapper.readTree(res.getResponse().getContentAsString()).at("/result/orderId").asLong();
+        return objectMapper.readTree(res.getResponse().getContentAsString()).at("/orderId").asLong();
     }
 }

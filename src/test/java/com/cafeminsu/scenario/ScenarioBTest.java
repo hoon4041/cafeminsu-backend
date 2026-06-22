@@ -40,28 +40,28 @@ class ScenarioBTest extends IntegrationTestSupport {
         /* === 알림: accept + ready 두 번 === */
         String customerAuth = fixtures.authHeader(customer);
         mockMvc.perform(get("/api/notifications").header("Authorization", customerAuth))
-                .andExpect(jsonPath("$.result.length()").value(2))
-                .andExpect(jsonPath("$.result[*].relatedEntityId").value(
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[*].relatedEntityId").value(
                         org.hamcrest.Matchers.everyItem(
                                 org.hamcrest.Matchers.equalTo((int) orderId))));
 
         mockMvc.perform(get("/api/notifications/unread-count").header("Authorization", customerAuth))
-                .andExpect(jsonPath("$.result.count").value(2));
+                .andExpect(jsonPath("$.count").value(2));
 
         /* === 스탬프: 음료 2잔 → 2개 적립 (적립 1회 이력) === */
         mockMvc.perform(get("/api/stamps").header("Authorization", customerAuth))
-                .andExpect(jsonPath("$.result.length()").value(1))
-                .andExpect(jsonPath("$.result[0].storeId").value((int) storeId))
-                .andExpect(jsonPath("$.result[0].count").value(2));
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].storeId").value((int) storeId))
+                .andExpect(jsonPath("$[0].count").value(2));
 
         mockMvc.perform(get("/api/stamps/" + storeId).header("Authorization", customerAuth))
-                .andExpect(jsonPath("$.result.count").value(2))
-                .andExpect(jsonPath("$.result.histories.length()").value(1))
-                .andExpect(jsonPath("$.result.histories[0].earnedCount").value(2));
+                .andExpect(jsonPath("$.count").value(2))
+                .andExpect(jsonPath("$.histories.length()").value(1))
+                .andExpect(jsonPath("$.histories[0].earnedCount").value(2));
 
         /* === 정산 (점주) === */
         mockMvc.perform(get("/api/stores/" + storeId + "/payments").header("Authorization", ownerAuth))
-                .andExpect(jsonPath("$.result.total").value(9000));
+                .andExpect(jsonPath("$.total").value(9000));
     }
 
     /* ===== helpers ===== */
@@ -74,7 +74,7 @@ class ScenarioBTest extends IntegrationTestSupport {
                                 """))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/storeId").asLong();
+                .at("/storeId").asLong();
     }
 
     private long createMenu(User owner, long storeId, String name, int price) throws Exception {
@@ -84,7 +84,7 @@ class ScenarioBTest extends IntegrationTestSupport {
                         .content("{\"name\":\"" + name + "\",\"price\":" + price + ",\"category\":\"커피\"}"))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/menuId").asLong();
+                .at("/menuId").asLong();
     }
 
     private long createOrder(User customer, long storeId, long menuId, int quantity) throws Exception {
@@ -102,7 +102,7 @@ class ScenarioBTest extends IntegrationTestSupport {
                         .content(body))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/orderId").asLong();
+                .at("/orderId").asLong();
     }
 
     private String prepare(User customer, long orderId, int cardAmount) throws Exception {
@@ -112,7 +112,7 @@ class ScenarioBTest extends IntegrationTestSupport {
                         .content(String.format("{\"orderId\":%d,\"cardAmount\":%d}", orderId, cardAmount)))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/merchantUid").asText();
+                .at("/merchantUid").asText();
     }
 
     private void verify(User customer, String merchantUid) throws Exception {
@@ -121,6 +121,6 @@ class ScenarioBTest extends IntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format(
                                 "{\"impUid\":\"imp_test_scenarioB\",\"merchantUid\":\"%s\"}", merchantUid)))
-                .andExpect(jsonPath("$.result.status").value("PAID"));
+                .andExpect(jsonPath("$.status").value("PAID"));
     }
 }

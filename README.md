@@ -36,7 +36,7 @@ open http://localhost:8080/swagger-ui.html
 src/main/java/com/cafeminsu/
 ├── CafeminsuApplication.java
 ├── global/
-│   ├── common/         # BaseResponse, BaseResponseStatus, BaseEntity, HealthController
+│   ├── common/         # ErrorResponse, BaseResponseStatus, BaseEntity, HealthController
 │   ├── config/         # Security, Web (CORS·Resolver), Swagger
 │   ├── exception/      # BaseException, GlobalExceptionHandler
 │   └── security/
@@ -56,20 +56,22 @@ src/main/java/com/cafeminsu/
 
 ## 응답 포맷
 
-모든 응답은 `BaseResponse<T>`로 감싸서 반환합니다.
+성공/실패를 **HTTP status code**로 구분합니다. (별도 envelope 래퍼 없음)
 
-성공:
+성공 — 응답 DTO를 그대로 반환, HTTP 2xx:
 ```json
-{ "isSuccess": true, "code": 1000, "result": { ... } }
+{ "id": 0, "nickname": "민수", "profileImageUrl": "...", "role": "CUSTOMER" }
 ```
+반환값이 없는 요청(수정/삭제 등)은 HTTP 200에 빈 본문입니다.
 
-실패:
+실패 — 적절한 4xx/5xx HTTP status + `ErrorResponse`:
 ```json
-{ "isSuccess": false, "code": 2100, "message": "인증이 필요합니다." }
+{ "code": "USER_NOT_FOUND", "message": "존재하지 않는 사용자입니다." }
 ```
+- 클라이언트는 **HTTP status로 큰 분류**(성공/인증/권한/검증/서버오류)를, **`code` 문자열로 세부 분기**를 합니다.
+- `code`는 `BaseResponseStatus` enum 이름(자기설명적 문자열)입니다.
 
-코드 영역 (도메인별 4자리):
-- `1000` 성공
+에러 코드 영역 (도메인별, `BaseResponseStatus` 참고):
 - `2000~2099` 공통/시스템
 - `2100~2199` 인증/인가
 - `2200~2299` User
@@ -89,7 +91,7 @@ src/main/java/com/cafeminsu/
 - 컨트롤러에서 인증된 사용자 ID 꺼내쓰기:
   ```java
   @GetMapping("/api/user/profile")
-  public BaseResponse<UserProfileRes> getProfile(@LoginUserId Long userId) { ... }
+  public UserProfileRes getProfile(@LoginUserId Long userId) { ... }
   ```
 
 ## 다음 단계

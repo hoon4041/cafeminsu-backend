@@ -33,8 +33,7 @@ class StoreFlowTest extends IntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(STORE_BODY))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isSuccess").value(true))
-                .andExpect(jsonPath("$.result.storeId").isNumber());
+                .andExpect(jsonPath("$.storeId").isNumber());
     }
 
     @Test
@@ -59,8 +58,7 @@ class StoreFlowTest extends IntegrationTestSupport {
                         .header("Authorization", fixtures.authHeader(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"새이름\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.isSuccess").value(true));
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -74,8 +72,8 @@ class StoreFlowTest extends IntegrationTestSupport {
                         .header("Authorization", fixtures.authHeader(owner2))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"빼앗기\"}"))
-                .andExpect(jsonPath("$.isSuccess").value(false))
-                .andExpect(jsonPath("$.code").value(2301));   // NOT_STORE_OWNER
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("NOT_STORE_OWNER"));
     }
 
     @Test
@@ -89,7 +87,8 @@ class StoreFlowTest extends IntegrationTestSupport {
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/stores/" + storeId))
-                .andExpect(jsonPath("$.code").value(2300));   // STORE_NOT_FOUND
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("STORE_NOT_FOUND"));
     }
 
     /* helper */
@@ -101,6 +100,6 @@ class StoreFlowTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/storeId").asLong();
+                .at("/storeId").asLong();
     }
 }
