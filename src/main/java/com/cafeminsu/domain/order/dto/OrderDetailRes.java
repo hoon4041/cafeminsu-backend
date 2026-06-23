@@ -3,7 +3,6 @@ package com.cafeminsu.domain.order.dto;
 import com.cafeminsu.domain.order.entity.Order;
 import com.cafeminsu.domain.order.entity.OrderItem;
 import com.cafeminsu.domain.order.entity.OrderItemOption;
-import com.cafeminsu.domain.order.entity.OrderMethod;
 import com.cafeminsu.domain.order.entity.OrderStatus;
 import com.cafeminsu.domain.order.entity.OrderType;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -23,7 +22,6 @@ public record OrderDetailRes(
         Long storeId,
         String storeName,
         OrderType orderType,
-        OrderMethod orderMethod,
         OrderStatus status,
         Integer totalAmount,
         String cancelReason,
@@ -43,7 +41,6 @@ public record OrderDetailRes(
                 o.getStoreId(),
                 storeName,
                 o.getOrderType(),
-                o.getOrderMethod(),
                 o.getStatus(),
                 o.getTotalAmount(),
                 o.getCancelReason(),

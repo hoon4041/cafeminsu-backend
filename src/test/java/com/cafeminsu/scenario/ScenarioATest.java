@@ -67,7 +67,6 @@ class ScenarioATest extends IntegrationTestSupport {
                 {
                   "storeId": %d,
                   "orderType": "MOBILE",
-                  "orderMethod": "MANUAL",
                   "items": [{"menuId": %d, "quantity": 2, "optionIds": [%d]}]
                 }
                 """, storeId, menuId, optionId);

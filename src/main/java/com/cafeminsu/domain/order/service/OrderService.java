@@ -130,7 +130,6 @@ public class OrderService {
                 .storeId(store.getId())
                 .orderNumber(orderNumber)
                 .orderType(req.orderType())
-                .orderMethod(req.orderMethod())
                 .totalAmount(totalAmount)
                 .items(orderItems)
                 .build();
@@ -279,7 +278,6 @@ public class OrderService {
         OrderCreateReq req = new OrderCreateReq(
                 prev.getStoreId(),
                 prev.getOrderType(),
-                prev.getOrderMethod(),
                 items
         );
         return createOrder(userId, req);

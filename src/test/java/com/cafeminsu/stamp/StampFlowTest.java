@@ -187,7 +187,6 @@ class StampFlowTest extends IntegrationTestSupport {
                 {
                   "storeId": %d,
                   "orderType": "MOBILE",
-                  "orderMethod": "MANUAL",
                   "items": [{"menuId": %d, "quantity": %d}]
                 }
                 """, s.storeId, s.menuId, quantity);
