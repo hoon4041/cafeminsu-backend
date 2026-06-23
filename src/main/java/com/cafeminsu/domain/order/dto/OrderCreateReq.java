@@ -1,6 +1,5 @@
 package com.cafeminsu.domain.order.dto;
 
-import com.cafeminsu.domain.order.entity.OrderMethod;
 import com.cafeminsu.domain.order.entity.OrderType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -15,9 +14,6 @@ public record OrderCreateReq(
 
         @NotNull(message = "orderType은 필수입니다 (MOBILE / KIOSK).")
         OrderType orderType,
-
-        @NotNull(message = "orderMethod는 필수입니다 (VOICE / MANUAL).")
-        OrderMethod orderMethod,
 
         @NotEmpty(message = "주문 항목이 비어 있습니다.")
         @Valid

@@ -59,10 +59,6 @@ public class Order extends BaseEntity {
     @Column(nullable = false, length = 20)
     private OrderStatus status;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "order_method", nullable = false, length = 20)
-    private OrderMethod orderMethod;
-
     @Column(name = "total_amount", nullable = false)
     private Integer totalAmount;
 
@@ -74,13 +70,12 @@ public class Order extends BaseEntity {
 
     @Builder
     private Order(Long userId, Long storeId, String orderNumber,
-                  OrderType orderType, OrderMethod orderMethod,
+                  OrderType orderType,
                   Integer totalAmount, List<OrderItem> items) {
         this.userId = userId;
         this.storeId = storeId;
         this.orderNumber = orderNumber;
         this.orderType = orderType;
-        this.orderMethod = orderMethod;
         this.totalAmount = totalAmount;
         this.status = OrderStatus.PENDING;
         if (items != null) {

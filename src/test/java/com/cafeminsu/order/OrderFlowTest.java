@@ -22,7 +22,6 @@ class OrderFlowTest extends IntegrationTestSupport {
                 {
                   "storeId": %d,
                   "orderType": "MOBILE",
-                  "orderMethod": "MANUAL",
                   "items": [
                     {"menuId": %d, "quantity": 2, "optionIds": [%d], "price": 0}
                   ]
@@ -54,7 +53,6 @@ class OrderFlowTest extends IntegrationTestSupport {
                 {
                   "storeId": %d,
                   "orderType": "MOBILE",
-                  "orderMethod": "MANUAL",
                   "items": [{"menuId": %d, "quantity": 1}]
                 }
                 """.formatted(ctx.storeId, otherMenuId);
@@ -197,7 +195,6 @@ class OrderFlowTest extends IntegrationTestSupport {
                 {
                   "storeId": %d,
                   "orderType": "MOBILE",
-                  "orderMethod": "MANUAL",
                   "items": [{"menuId": %d, "quantity": 2, "optionIds": [%d]}]
                 }
                 """.formatted(ctx.storeId, ctx.menuId, ctx.optionId);

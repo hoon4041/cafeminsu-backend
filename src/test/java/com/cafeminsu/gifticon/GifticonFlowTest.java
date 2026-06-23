@@ -175,7 +175,6 @@ class GifticonFlowTest extends IntegrationTestSupport {
                 {
                   "storeId": %d,
                   "orderType": "MOBILE",
-                  "orderMethod": "MANUAL",
                   "items": [{"menuId": %d, "quantity": 1}]
                 }
                 """, storeId, menuId);

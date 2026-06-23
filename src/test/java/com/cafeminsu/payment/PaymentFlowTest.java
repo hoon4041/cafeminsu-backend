@@ -141,7 +141,6 @@ class PaymentFlowTest extends IntegrationTestSupport {
                 {
                   "storeId": %d,
                   "orderType": "MOBILE",
-                  "orderMethod": "MANUAL",
                   "items": [{"menuId": %d, "quantity": 2}]
                 }
                 """, storeId, menuId);

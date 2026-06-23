@@ -163,7 +163,6 @@ class NotificationFlowTest extends IntegrationTestSupport {
                 {
                   "storeId": %d,
                   "orderType": "MOBILE",
-                  "orderMethod": "MANUAL",
                   "items": [{"menuId": %d, "quantity": 1}]
                 }
                 """, s.storeId, s.menuId);
