@@ -94,6 +94,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/orders/*/complete").hasRole("OWNER")
                         .requestMatchers("/api/stores/*/orders").hasRole("OWNER")
                         .requestMatchers("/api/stores/*/payments").hasRole("OWNER")
+                        .requestMatchers("/api/stores/*/sales-summary").hasRole("OWNER")
 
                         /* ===== Image 업로드 (점주 전용) ===== */
                         .requestMatchers(HttpMethod.POST, "/api/images/**").hasRole("OWNER")

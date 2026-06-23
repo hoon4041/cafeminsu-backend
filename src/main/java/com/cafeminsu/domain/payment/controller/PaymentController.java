@@ -5,6 +5,7 @@ import com.cafeminsu.domain.payment.dto.PaymentPrepareReq;
 import com.cafeminsu.domain.payment.dto.PaymentPrepareRes;
 import com.cafeminsu.domain.payment.dto.PaymentVerifyReq;
 import com.cafeminsu.domain.payment.dto.PaymentVerifyRes;
+import com.cafeminsu.domain.payment.dto.SalesSummaryRes;
 import com.cafeminsu.domain.payment.dto.StorePaymentsRes;
 import com.cafeminsu.domain.payment.service.PaymentService;
 import com.cafeminsu.global.security.LoginUserId;
@@ -66,5 +67,17 @@ public class PaymentController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return paymentService.getStorePayments(userId, storeId, from, to);
+    }
+
+    /* 5. 매장 매출 요약 (점주, 대시보드) */
+    @Operation(summary = "매장 매출 요약 (점주)",
+            description = "기간 내 PAID 결제 기준 총매출·일자별 매출·메뉴별 판매 랭킹. 대시보드 데이터.")
+    @GetMapping("/api/stores/{storeId}/sales-summary")
+    public SalesSummaryRes salesSummary(
+            @LoginUserId Long userId,
+            @PathVariable Long storeId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return paymentService.getSalesSummary(userId, storeId, from, to);
     }
 }
