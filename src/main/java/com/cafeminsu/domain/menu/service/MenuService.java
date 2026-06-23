@@ -51,6 +51,21 @@ public class MenuService {
                 .isAvailable(req.isAvailable())
                 .build();
         Menu saved = menuRepository.save(menu);
+
+        // 함께 전달된 옵션이 있으면 같은 트랜잭션에서 일괄 저장 (전부 성공 또는 전부 롤백)
+        if (req.options() != null && !req.options().isEmpty()) {
+            List<MenuOption> options = req.options().stream()
+                    .map(o -> MenuOption.builder()
+                            .menuId(saved.getId())
+                            .optionGroup(o.optionGroup())
+                            .optionName(o.optionName())
+                            .additionalPrice(o.additionalPrice())
+                            .isDefault(o.isDefault())
+                            .build())
+                    .toList();
+            menuOptionRepository.saveAll(options);
+        }
+
         return new MenuCreateRes(saved.getId());
     }
 
