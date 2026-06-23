@@ -2,12 +2,14 @@ package com.cafeminsu.domain.payment.service;
 
 import com.cafeminsu.domain.order.entity.Order;
 import com.cafeminsu.domain.order.entity.OrderStatus;
+import com.cafeminsu.domain.order.repository.OrderItemRepository;
 import com.cafeminsu.domain.order.repository.OrderRepository;
 import com.cafeminsu.domain.payment.dto.PaymentDetailRes;
 import com.cafeminsu.domain.payment.dto.PaymentPrepareReq;
 import com.cafeminsu.domain.payment.dto.PaymentPrepareRes;
 import com.cafeminsu.domain.payment.dto.PaymentVerifyReq;
 import com.cafeminsu.domain.payment.dto.PaymentVerifyRes;
+import com.cafeminsu.domain.payment.dto.SalesSummaryRes;
 import com.cafeminsu.domain.payment.dto.StorePaymentsRes;
 import com.cafeminsu.domain.payment.entity.Payment;
 import com.cafeminsu.domain.payment.entity.PaymentMethod;
@@ -19,12 +21,18 @@ import com.cafeminsu.global.common.BaseResponseStatus;
 import com.cafeminsu.global.exception.BaseException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -33,7 +41,11 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class PaymentService {
 
+    /** 메뉴별 판매 랭킹 노출 개수 */
+    private static final int TOP_MENU_LIMIT = 10;
+
     private final PaymentRepository paymentRepository;
+    private final OrderItemRepository orderItemRepository;
     private final OrderRepository orderRepository;
     private final StoreRepository storeRepository;
     private final PortoneClient portoneClient;
@@ -190,6 +202,58 @@ public class PaymentService {
         List<Payment> payments = paymentRepository.findStorePayments(
                 storeId, PaymentStatus.PAID, fromAt, toAt);
         return StorePaymentsRes.of(payments);
+    }
+
+    /* =========================================================
+     * 5) 매장 매출 요약 (점주 대시보드)
+     *
+     * 모두 PAID 결제(paidAt 기준)만 집계.
+     *  - totalSales / dailySales : PAID 결제 목록을 재사용해 Java에서 집계 (DB 방언 의존 X)
+     *  - topMenus               : PAID 주문의 OrderItem을 DB에서 집계 (DISTINCT 주문으로 분할결제 중복 방지)
+     * ========================================================= */
+    public SalesSummaryRes getSalesSummary(Long userId, Long storeId,
+                                           LocalDate from, LocalDate to) {
+        verifyStoreOwner(storeId, userId);
+
+        LocalDateTime fromAt = from != null ? from.atStartOfDay() : null;
+        LocalDateTime toAt   = to   != null ? to.plusDays(1).atStartOfDay() : null;
+
+        List<Payment> payments = paymentRepository.findStorePayments(
+                storeId, PaymentStatus.PAID, fromAt, toAt);
+
+        long totalSales = payments.stream().mapToLong(Payment::getAmount).sum();
+        List<SalesSummaryRes.DailySales> dailySales = aggregateDaily(payments);
+
+        List<SalesSummaryRes.TopMenu> topMenus = orderItemRepository.findTopMenus(
+                        storeId, PaymentStatus.PAID, fromAt, toAt,
+                        PageRequest.of(0, TOP_MENU_LIMIT))
+                .stream()
+                .map(r -> new SalesSummaryRes.TopMenu(
+                        r.getMenuId(), r.getName(), r.getQuantity(), r.getAmount()))
+                .toList();
+
+        return new SalesSummaryRes(totalSales, dailySales, topMenus);
+    }
+
+    /** PAID 결제 목록 → 일자별 버킷(날짜 오름차순). amount=금액 합, orderCount=주문 수(분할결제 중복 제외). */
+    private List<SalesSummaryRes.DailySales> aggregateDaily(List<Payment> payments) {
+        Map<LocalDate, long[]> amountByDate = new LinkedHashMap<>();           // [금액 합]
+        Map<LocalDate, Set<Long>> ordersByDate = new LinkedHashMap<>();        // 분할결제 중복 제거용 주문 ID 집합
+
+        for (Payment p : payments) {
+            if (p.getPaidAt() == null) continue;   // 방어 — PAID인데 paidAt null이면 스킵
+            LocalDate date = p.getPaidAt().toLocalDate();
+            amountByDate.computeIfAbsent(date, d -> new long[1])[0] += p.getAmount();
+            ordersByDate.computeIfAbsent(date, d -> new HashSet<>()).add(p.getOrderId());
+        }
+
+        return amountByDate.entrySet().stream()
+                .map(e -> new SalesSummaryRes.DailySales(
+                        e.getKey(),
+                        e.getValue()[0],
+                        ordersByDate.get(e.getKey()).size()))
+                .sorted(Comparator.comparing(SalesSummaryRes.DailySales::date))
+                .toList();
     }
 
     /* ============================
