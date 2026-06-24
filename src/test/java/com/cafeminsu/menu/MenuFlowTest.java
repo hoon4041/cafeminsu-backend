@@ -84,15 +84,15 @@ class MenuFlowTest extends IntegrationTestSupport {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.menuId").isNumber())
+                .andExpect(jsonPath("$.menuId").isNumber())
                 .andReturn();
         long menuId = objectMapper.readTree(res.getResponse().getContentAsString())
-                .at("/result/menuId").asLong();
+                .at("/menuId").asLong();
 
         // 상세 조회 시 옵션 2개가 함께 생성돼 있어야 함
         mockMvc.perform(get("/api/menus/" + menuId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.options.length()").value(2));
+                .andExpect(jsonPath("$.options.length()").value(2));
     }
 
     @Test
@@ -104,7 +104,7 @@ class MenuFlowTest extends IntegrationTestSupport {
 
         mockMvc.perform(get("/api/menus/" + menuId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.options.length()").value(0));
+                .andExpect(jsonPath("$.options.length()").value(0));
     }
 
     @Test
@@ -128,7 +128,7 @@ class MenuFlowTest extends IntegrationTestSupport {
 
         // 메뉴 목록이 비어 있어야 함 (롤백 확인)
         mockMvc.perform(get("/api/stores/" + storeId + "/menus"))
-                .andExpect(jsonPath("$.result.length()").value(0));
+                .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test
