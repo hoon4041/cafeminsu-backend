@@ -1,5 +1,9 @@
 package com.cafeminsu.domain.payment.controller;
 
+import com.cafeminsu.domain.payment.dto.KakaoPayApproveReq;
+import com.cafeminsu.domain.payment.dto.KakaoPayApproveRes;
+import com.cafeminsu.domain.payment.dto.KakaoPayReadyReq;
+import com.cafeminsu.domain.payment.dto.KakaoPayReadyRes;
 import com.cafeminsu.domain.payment.dto.PaymentDetailRes;
 import com.cafeminsu.domain.payment.dto.PaymentPrepareReq;
 import com.cafeminsu.domain.payment.dto.PaymentPrepareRes;
@@ -42,11 +46,31 @@ public class PaymentController {
 
     /* 2. 결제 검증 */
     @Operation(summary = "결제 검증",
-            description = "포트원 결제 완료 후 콜백. impUid로 서버가 다시 조회해 금액을 검증합니다.")
+            description = "포트원/카카오페이 결제 완료 후 콜백. impUid로 서버가 다시 조회해 금액을 검증합니다. " +
+                    "카카오페이는 approve 응답의 paymentToken을 impUid 슬롯에 넣어 호출하세요.")
     @PostMapping("/api/payments/verify")
     public PaymentVerifyRes verify(@LoginUserId Long userId,
                                    @Valid @RequestBody PaymentVerifyReq req) {
         return paymentService.verify(userId, req);
+    }
+
+    /* 2-1. 카카오페이 ready */
+    @Operation(summary = "카카오페이 결제 준비(ready)",
+            description = "prepare로 발급된 merchantUid + 카드 결제분 amount를 보냅니다. " +
+                    "응답의 redirectUrl을 외부 브라우저로 열어 사용자 인증을 진행하세요.")
+    @PostMapping("/api/payments/kakaopay/ready")
+    public KakaoPayReadyRes kakaoPayReady(@LoginUserId Long userId,
+                                          @Valid @RequestBody KakaoPayReadyReq req) {
+        return paymentService.kakaoPayReady(userId, req);
+    }
+
+    /* 2-2. 카카오페이 approve */
+    @Operation(summary = "카카오페이 결제 승인(approve)",
+            description = "딥링크에서 추출한 pgToken으로 승인합니다. 응답의 paymentToken을 이후 verify의 impUid로 사용하세요.")
+    @PostMapping("/api/payments/kakaopay/approve")
+    public KakaoPayApproveRes kakaoPayApprove(@LoginUserId Long userId,
+                                              @Valid @RequestBody KakaoPayApproveReq req) {
+        return paymentService.kakaoPayApprove(userId, req);
     }
 
     /* 3. 결제 상세 */

@@ -162,6 +162,8 @@ CREATE TABLE payments (
   id                BIGINT       NOT NULL AUTO_INCREMENT,
   order_id          BIGINT       NOT NULL,
   portone_imp_uid   VARCHAR(50)  NULL UNIQUE,
+  kakaopay_tid      VARCHAR(100) NULL,
+  kakaopay_aid      VARCHAR(100) NULL,
   amount            INT          NOT NULL,
   method            ENUM('CARD','GIFTICON') NOT NULL,
   status            ENUM('READY','PAID','FAILED','REFUNDED') NOT NULL DEFAULT 'READY',

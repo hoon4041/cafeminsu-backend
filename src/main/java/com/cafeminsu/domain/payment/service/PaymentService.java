@@ -4,6 +4,10 @@ import com.cafeminsu.domain.order.entity.Order;
 import com.cafeminsu.domain.order.entity.OrderStatus;
 import com.cafeminsu.domain.order.repository.OrderItemRepository;
 import com.cafeminsu.domain.order.repository.OrderRepository;
+import com.cafeminsu.domain.payment.dto.KakaoPayApproveReq;
+import com.cafeminsu.domain.payment.dto.KakaoPayApproveRes;
+import com.cafeminsu.domain.payment.dto.KakaoPayReadyReq;
+import com.cafeminsu.domain.payment.dto.KakaoPayReadyRes;
 import com.cafeminsu.domain.payment.dto.PaymentDetailRes;
 import com.cafeminsu.domain.payment.dto.PaymentPrepareReq;
 import com.cafeminsu.domain.payment.dto.PaymentPrepareRes;
@@ -49,6 +53,7 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final StoreRepository storeRepository;
     private final PortoneClient portoneClient;
+    private final KakaoPayClient kakaoPayClient;
 
     /* =========================================================
      * 1) 결제 준비
@@ -146,18 +151,28 @@ public class PaymentService {
                     "이미 처리된 결제입니다.");
         }
 
-        // 포트원에서 실제 결제 금액 조회
-        PortoneClient.VerificationResult result = portoneClient.verify(
-                req.impUid(), cardPayment.getAmount());
+        if (cardPayment.isKakaoPay()) {
+            // 카카오페이는 approve 단계에서 이미 결제가 캡처·금액검증됨.
+            // verify는 넘어온 paymentToken(=aid)이 approve 때 저장한 aid와 일치하는지만 대조한다.
+            if (!req.impUid().equals(cardPayment.getKakaopayAid())) {
+                cardPayment.markFailed();
+                log.warn("[Payment] verify FAIL(kakaopay) paymentId={} token mismatch", cardPayment.getId());
+                throw new BaseException(BaseResponseStatus.PAYMENT_VERIFICATION_FAILED);
+            }
+            cardPayment.markPaidWithoutImpUid();
+        } else {
+            // 포트원에서 실제 결제 금액 조회
+            PortoneClient.VerificationResult result = portoneClient.verify(
+                    req.impUid(), cardPayment.getAmount());
 
-        if (!result.isPaid() || result.amount() != cardPayment.getAmount()) {
-            cardPayment.markFailed();
-            log.warn("[Payment] verify FAIL paymentId={} portoneStatus={} portoneAmount={}",
-                    cardPayment.getId(), result.status(), result.amount());
-            throw new BaseException(BaseResponseStatus.PAYMENT_AMOUNT_MISMATCH);
+            if (!result.isPaid() || result.amount() != cardPayment.getAmount()) {
+                cardPayment.markFailed();
+                log.warn("[Payment] verify FAIL paymentId={} portoneStatus={} portoneAmount={}",
+                        cardPayment.getId(), result.status(), result.amount());
+                throw new BaseException(BaseResponseStatus.PAYMENT_AMOUNT_MISMATCH);
+            }
+            cardPayment.markPaid(req.impUid());
         }
-
-        cardPayment.markPaid(req.impUid());
 
         // 같은 주문의 GIFTICON 결제분도 함께 PAID 처리
         paymentRepository.findAllByOrderId(order.getId()).stream()
@@ -170,6 +185,76 @@ public class PaymentService {
 
         log.info("[Payment] verify OK paymentId={} order={}", cardPayment.getId(), order.getId());
         return new PaymentVerifyRes(cardPayment.getId(), cardPayment.getStatus());
+    }
+
+    /* =========================================================
+     * 2-1) 카카오페이 ready (서버 → 카카오페이 payment/ready)
+     *
+     * 앱은 prepare로 발급된 merchantUid + 카드 결제분 amount를 보낸다.
+     * 카카오페이 tid를 결제 row에 저장하고, 앱이 열 redirectUrl을 반환한다.
+     * ========================================================= */
+    @Transactional
+    public KakaoPayReadyRes kakaoPayReady(Long userId, KakaoPayReadyReq req) {
+        Payment cardPayment = findReadyCardPayment(userId, req.merchantUid());
+
+        // 앱이 보낸 금액이 사전 준비된 카드 결제분과 일치해야 함 (위조 방어)
+        if (!cardPayment.getAmount().equals(req.amount())) {
+            throw new BaseException(BaseResponseStatus.PAYMENT_AMOUNT_MISMATCH);
+        }
+
+        KakaoPayClient.ReadyResult result = kakaoPayClient.ready(
+                req.merchantUid(), String.valueOf(userId), "카페민수 주문", req.amount());
+
+        cardPayment.assignKakaoPayTid(result.tid());
+        log.info("[KakaoPay] ready merchantUid={} tid={}", req.merchantUid(), result.tid());
+        return new KakaoPayReadyRes(result.tid(), result.redirectUrl());
+    }
+
+    /* =========================================================
+     * 2-2) 카카오페이 approve (서버 → 카카오페이 payment/approve)
+     *
+     * pgToken으로 결제를 승인하고 aid를 저장한다.
+     * 낙관 금지: 여기서 PAID로 확정하지 않고, 기존 verify가 paymentToken(=aid)으로 최종 확정한다.
+     * ========================================================= */
+    @Transactional
+    public KakaoPayApproveRes kakaoPayApprove(Long userId, KakaoPayApproveReq req) {
+        Payment cardPayment = findReadyCardPayment(userId, req.merchantUid());
+
+        // ready에서 저장한 tid와 앱이 보낸 tid 대조
+        if (!cardPayment.isKakaoPay() || !cardPayment.getKakaopayTid().equals(req.tid())) {
+            throw new BaseException(BaseResponseStatus.PAYMENT_VERIFICATION_FAILED, "유효하지 않은 결제 요청입니다.");
+        }
+
+        KakaoPayClient.ApproveResult result = kakaoPayClient.approve(
+                req.tid(), req.merchantUid(), String.valueOf(userId), req.pgToken(),
+                cardPayment.getAmount());
+
+        // 승인 금액이 주문 금액과 다르면 거부
+        if (result.amount() != cardPayment.getAmount()) {
+            cardPayment.markFailed();
+            log.warn("[KakaoPay] approve amount mismatch paymentId={} approved={} expected={}",
+                    cardPayment.getId(), result.amount(), cardPayment.getAmount());
+            throw new BaseException(BaseResponseStatus.PAYMENT_AMOUNT_MISMATCH);
+        }
+
+        cardPayment.assignKakaoPayAid(result.aid());
+        log.info("[KakaoPay] approve OK merchantUid={} aid={}", req.merchantUid(), result.aid());
+        return new KakaoPayApproveRes(result.aid());
+    }
+
+    /** merchantUid로 READY 상태의 CARD 결제를 찾고 본인 주문인지 검증. */
+    private Payment findReadyCardPayment(Long userId, String merchantUid) {
+        Payment cardPayment = paymentRepository.findByMerchantUid(merchantUid)
+                .orElseThrow(() -> new BaseException(BaseResponseStatus.PAYMENT_NOT_FOUND));
+        Order order = orderRepository.findById(cardPayment.getOrderId())
+                .orElseThrow(() -> new BaseException(BaseResponseStatus.ORDER_NOT_FOUND));
+        if (!order.isPlacedBy(userId)) {
+            throw new BaseException(BaseResponseStatus.ACCESS_DENIED);
+        }
+        if (cardPayment.getStatus() != PaymentStatus.READY) {
+            throw new BaseException(BaseResponseStatus.PAYMENT_VERIFICATION_FAILED, "이미 처리된 결제입니다.");
+        }
+        return cardPayment;
     }
 
     /* =========================================================

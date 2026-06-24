@@ -61,6 +61,14 @@ public class Payment extends BaseEntity {
     @Column(name = "gifticon_id")
     private Long gifticonId;
 
+    /** 카카오페이 ready 응답의 tid. 카카오페이 결제분에만 채워짐(이 값이 있으면 카카오페이 결제). */
+    @Column(name = "kakaopay_tid", length = 100)
+    private String kakaopayTid;
+
+    /** 카카오페이 approve 응답의 aid(결제 승인 번호). verify가 paymentToken으로 대조. */
+    @Column(name = "kakaopay_aid", length = 100)
+    private String kakaopayAid;
+
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
 
@@ -79,6 +87,21 @@ public class Payment extends BaseEntity {
         this.portoneImpUid = impUid;
         this.status = PaymentStatus.PAID;
         this.paidAt = LocalDateTime.now();
+    }
+
+    /** 카카오페이 ready 성공 시 tid 저장. */
+    public void assignKakaoPayTid(String tid) {
+        this.kakaopayTid = tid;
+    }
+
+    /** 카카오페이 approve 성공 시 승인번호(aid) 저장. */
+    public void assignKakaoPayAid(String aid) {
+        this.kakaopayAid = aid;
+    }
+
+    /** 카카오페이 결제분 여부 — tid가 있으면 카카오페이로 ready된 결제. */
+    public boolean isKakaoPay() {
+        return this.kakaopayTid != null;
     }
 
     public void markPaidWithoutImpUid() {
