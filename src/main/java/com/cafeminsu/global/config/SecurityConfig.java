@@ -48,6 +48,10 @@ public class SecurityConfig {
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs/**",
+            // 카카오페이 인증 후 브라우저 리다이렉트(앱 딥링크 브리지) — 인증 헤더 없이 호출됨
+            "/api/payments/kakaopay/return",
+            "/api/payments/kakaopay/cancel",
+            "/api/payments/kakaopay/fail",
             // health
             "/health",
             "/actuator/**",
