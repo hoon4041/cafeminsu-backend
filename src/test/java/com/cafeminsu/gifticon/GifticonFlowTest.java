@@ -13,7 +13,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class GifticonFlowTest extends IntegrationTestSupport {
 
     @Test
-    @DisplayName("기프티콘 발행 — receiverId 지정")
+    @DisplayName("기프티콘 구매 — 수신자 미지정, claimCode/shareLink 발급")
+    void purchaseWithoutReceiver() throws Exception {
+        User sender = fixtures.createCustomer("보내는사람");
+
+        mockMvc.perform(post("/api/gifticons")
+                        .header("Authorization", fixtures.authHeader(sender))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":50000,\"message\":\"오늘 하루 수고했어\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.gifticonId").isNumber())
+                .andExpect(jsonPath("$.claimCode").isString())
+                .andExpect(jsonPath("$.shareLink").isString())
+                .andExpect(jsonPath("$.amount").value(50000));
+    }
+
+    @Test
+    @DisplayName("기프티콘 구매 — receiverId 즉시 지정(하위호환)")
     void issueWithReceiverId() throws Exception {
         User sender = fixtures.createCustomer("보내는사람");
         User receiver = fixtures.createCustomer("받는사람");
@@ -26,7 +42,87 @@ class GifticonFlowTest extends IntegrationTestSupport {
                                 receiver.getId())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.gifticonId").isNumber())
-                .andExpect(jsonPath("$.qrCode").isString());
+                .andExpect(jsonPath("$.claimCode").isString());
+    }
+
+    @Test
+    @DisplayName("등록(claim) — 코드로 받는 사람 계정에 귀속 후 /my 노출")
+    void claimByReceiver() throws Exception {
+        User sender = fixtures.createCustomer("보낸사람");
+        User receiver = fixtures.createCustomer("받은사람");
+
+        // 수신자 미지정 발행
+        MvcResult res = mockMvc.perform(post("/api/gifticons")
+                        .header("Authorization", fixtures.authHeader(sender))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":30000}"))
+                .andExpect(status().isOk()).andReturn();
+        String claimCode = objectMapper.readTree(res.getResponse().getContentAsString())
+                .at("/claimCode").asText();
+
+        // 받는 사람이 등록
+        mockMvc.perform(post("/api/gifticons/claim")
+                        .header("Authorization", fixtures.authHeader(receiver))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"claimCode\":\"" + claimCode + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.amount").value(30000))
+                .andExpect(jsonPath("$.status").value("UNUSED"));
+
+        // 이후 사용 가능 목록(/my)에 노출
+        mockMvc.perform(get("/api/gifticons/my")
+                        .header("Authorization", fixtures.authHeader(receiver)))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].balance").value(30000));
+    }
+
+    @Test
+    @DisplayName("등록(claim) — 같은 사람 재등록은 멱등 성공")
+    void claimIdempotentForSameUser() throws Exception {
+        User sender = fixtures.createCustomer("보낸사람");
+        User receiver = fixtures.createCustomer("받은사람");
+        String claimCode = purchaseUnassigned(sender, 30000);
+
+        for (int i = 0; i < 2; i++) {
+            mockMvc.perform(post("/api/gifticons/claim")
+                            .header("Authorization", fixtures.authHeader(receiver))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"claimCode\":\"" + claimCode + "\"}"))
+                    .andExpect(status().isOk());
+        }
+    }
+
+    @Test
+    @DisplayName("등록(claim) — 이미 타인이 등록하면 ALREADY_CLAIMED(409)")
+    void claimAlreadyClaimedByOther() throws Exception {
+        User sender = fixtures.createCustomer("보낸사람");
+        User first = fixtures.createCustomer("먼저등록");
+        User second = fixtures.createCustomer("나중에등록");
+        String claimCode = purchaseUnassigned(sender, 30000);
+
+        mockMvc.perform(post("/api/gifticons/claim")
+                        .header("Authorization", fixtures.authHeader(first))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"claimCode\":\"" + claimCode + "\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/gifticons/claim")
+                        .header("Authorization", fixtures.authHeader(second))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"claimCode\":\"" + claimCode + "\"}"))
+                .andExpect(jsonPath("$.code").value("GIFTICON_ALREADY_CLAIMED"));
+    }
+
+    @Test
+    @DisplayName("등록(claim) — 존재하지 않는 코드는 INVALID_CODE")
+    void claimInvalidCode() throws Exception {
+        User receiver = fixtures.createCustomer("받은사람");
+
+        mockMvc.perform(post("/api/gifticons/claim")
+                        .header("Authorization", fixtures.authHeader(receiver))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"claimCode\":\"GFT-XXXX-XXXX\"}"))
+                .andExpect(jsonPath("$.code").value("GIFTICON_INVALID_CODE"));
     }
 
     @Test
@@ -41,21 +137,6 @@ class GifticonFlowTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$[0].amount").value(50000))
                 .andExpect(jsonPath("$[0].balance").value(50000))
                 .andExpect(jsonPath("$[0].status").value("UNUSED"));
-    }
-
-    @Test
-    @DisplayName("QR 검증 — 유효한 QR")
-    void validateValidQr() throws Exception {
-        User sender = fixtures.createCustomer("보낸사람");
-        User receiver = fixtures.createCustomer("받은사람");
-        IssueResult issued = issueGifticon(sender, receiver, 50000);
-
-        mockMvc.perform(post("/api/gifticons/redeem/validate")
-                        .header("Authorization", fixtures.authHeader(sender))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"qrCode\":\"" + issued.qrCode + "\"}"))
-                .andExpect(jsonPath("$.isValid").value(true))
-                .andExpect(jsonPath("$.balance").value(50000));
     }
 
     @Test
@@ -130,7 +211,18 @@ class GifticonFlowTest extends IntegrationTestSupport {
     }
 
     /* ===== helpers ===== */
-    record IssueResult(long gifticonId, String qrCode) {}
+    record IssueResult(long gifticonId, String claimCode) {}
+
+    /** 수신자 미지정으로 구매하고 claimCode 반환. */
+    String purchaseUnassigned(User sender, int amount) throws Exception {
+        MvcResult res = mockMvc.perform(post("/api/gifticons")
+                        .header("Authorization", fixtures.authHeader(sender))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.format("{\"amount\":%d}", amount)))
+                .andExpect(status().isOk()).andReturn();
+        return objectMapper.readTree(res.getResponse().getContentAsString())
+                .at("/claimCode").asText();
+    }
 
     IssueResult issueGifticon(User sender, User receiver, int amount) throws Exception {
         MvcResult res = mockMvc.perform(post("/api/gifticons")
@@ -142,7 +234,7 @@ class GifticonFlowTest extends IntegrationTestSupport {
         var root = objectMapper.readTree(res.getResponse().getContentAsString());
         return new IssueResult(
                 root.at("/gifticonId").asLong(),
-                root.at("/qrCode").asText()
+                root.at("/claimCode").asText()
         );
     }
 

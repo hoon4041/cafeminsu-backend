@@ -25,7 +25,7 @@ import java.time.LocalDateTime;
         indexes = {
                 @Index(name = "idx_gift_sender", columnList = "sender_id"),
                 @Index(name = "idx_gift_receiver", columnList = "receiver_id"),
-                @Index(name = "idx_gift_qrcode", columnList = "qr_code", unique = true),
+                @Index(name = "idx_gift_claim_token", columnList = "claim_token", unique = true),
                 @Index(name = "idx_gift_status", columnList = "status")
         })
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -38,7 +38,11 @@ public class Gifticon extends BaseEntity {
     @Column(name = "sender_id", nullable = false)
     private Long senderId;
 
-    /** 수신자 user_id. 미가입자에게 보내면 null. */
+    /**
+     * 수신자 user_id.
+     * 구매 시점에는 미지정(null)일 수 있고, 수신자가 claim(등록)하면 그때 채워진다.
+     * receiverId != null 이면 '귀속 완료'를 의미한다.
+     */
     @Column(name = "receiver_id")
     private Long receiverId;
 
@@ -54,9 +58,13 @@ public class Gifticon extends BaseEntity {
     @Column(nullable = false)
     private Integer balance;
 
-    /** QR 코드 — 추측 불가능한 UUID. 매장 키오스크에서 스캔. */
-    @Column(name = "qr_code", nullable = false, length = 100, unique = true)
-    private String qrCode;
+    /**
+     * 클레임 코드 — 추측 불가능한 1회성 토큰(예: GFT-XXXX-XXXX).
+     * 발신자가 공유 링크로 전달하면 수신자가 이 코드로 등록(claim)한다.
+     * 베어러 토큰처럼 동작하므로 로그에 남기지 않는다.
+     */
+    @Column(name = "claim_token", nullable = false, length = 100, unique = true)
+    private String claimToken;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -68,28 +76,32 @@ public class Gifticon extends BaseEntity {
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
-    /**
-     * 선물(양도) 가능 여부. 기본 true.
-     * 스탬프 적립 보상처럼 본인 전용으로 발급된 기프티콘은 false → 선물 링크 발급 차단.
-     */
-    @Column(nullable = false, columnDefinition = "TINYINT(1) NOT NULL DEFAULT 1")
-    private boolean transferable;
-
     @Builder
     private Gifticon(Long senderId, Long receiverId, String receiverPhone,
-                     Integer amount, String qrCode, String message,
-                     LocalDateTime expiresAt, Boolean transferable) {
+                     Integer amount, String claimToken, String message,
+                     LocalDateTime expiresAt) {
         this.senderId = senderId;
         this.receiverId = receiverId;
         this.receiverPhone = receiverPhone;
         this.amount = amount;
         this.balance = amount;  // 발행 시 잔액 = 금액
-        this.qrCode = qrCode;
+        this.claimToken = claimToken;
         this.message = message;
         this.expiresAt = expiresAt;
         this.status = GifticonStatus.UNUSED;
-        // null이면 기본 true (선물 가능)
-        this.transferable = transferable == null || transferable;
+    }
+
+    /** 이미 누군가에게 귀속되었는지 (claim 완료 여부). */
+    public boolean isClaimed() {
+        return this.receiverId != null;
+    }
+
+    /**
+     * 수신자에게 귀속 — claim(등록) 시 호출.
+     * 미귀속 상태에서만 가능. 이미 귀속된 건은 호출 측에서 멱등/충돌 처리.
+     */
+    public void claimBy(Long userId) {
+        this.receiverId = userId;
     }
 
     /**

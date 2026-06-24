@@ -65,6 +65,12 @@ kakaopay:
 fcm:
   service-account-path: ${FCM_SERVICE_ACCOUNT_PATH:firebase-service-account.json}
 
+# 기프티콘 선물 공유 링크
+# 받는 사람이 누르면 claim(등록) 페이지/딥링크로 진입한다. 최종 URL = {base}?code=GFT-XXXX-XXXX
+# 운영에서는 실제 클레임 웹페이지 또는 딥링크 호스트로 교체.
+gifticon:
+  share-base-url: ${GIFTICON_SHARE_BASE_URL:https://cafeminsu.example/gift}
+
 # 스탬프 적립 정책
 # drink-categories: 스탬프 적립 대상(음료)으로 인정할 메뉴 category 목록 (대소문자·공백 무시).
 #   매장에서 실제 사용하는 category 값에 맞게 조정하세요.

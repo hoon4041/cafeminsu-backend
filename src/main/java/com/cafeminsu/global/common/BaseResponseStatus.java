@@ -78,8 +78,8 @@ public enum BaseResponseStatus {
     GIFTICON_ALREADY_USED(HttpStatus.BAD_REQUEST, 2701, "이미 모두 사용된 기프티콘입니다."),
     GIFTICON_EXPIRED(HttpStatus.BAD_REQUEST, 2702, "만료된 기프티콘입니다."),
     GIFTICON_INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, 2703, "기프티콘 잔액이 부족합니다."),
-    GIFTICON_INVALID_QR(HttpStatus.BAD_REQUEST, 2704, "유효하지 않은 QR 코드입니다."),
-    GIFTICON_NOT_TRANSFERABLE(HttpStatus.BAD_REQUEST, 2705, "선물할 수 없는 기프티콘입니다."),
+    GIFTICON_INVALID_CODE(HttpStatus.BAD_REQUEST, 2704, "유효하지 않은 클레임 코드입니다."),
+    GIFTICON_ALREADY_CLAIMED(HttpStatus.CONFLICT, 2705, "이미 등록된 기프티콘입니다."),
 
     // ===== Stamp (2800~2899) =====
     STAMP_NOT_FOUND(HttpStatus.NOT_FOUND, 2800, "스탬프 정보가 없습니다."),
