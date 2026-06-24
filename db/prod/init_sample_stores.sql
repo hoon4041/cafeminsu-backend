@@ -142,50 +142,8 @@ FROM (
 ) v
 WHERE NOT EXISTS (SELECT 1 FROM menus m WHERE m.store_id=v.store_id AND m.name=v.name);
 
--- 3) 메뉴 이미지 (로컬 정적 SVG 일러스트 — 메뉴 단위) -------------------------
---    백엔드가 /imgs/menu/<슬러그>.svg 를 제공. 아직 이미지가 없는 메뉴에만 채운다(기존 값 보존).
---    이름별 전용 일러스트를 매핑하고, 혹시 모를 신규 메뉴는 카테고리 기본 이미지로 폴백한다.
---    상대경로(/imgs/...)로 저장하므로 프론트가 접속한 호스트 기준으로 해석된다.
---    → 로컬·운영 등 환경이 달라도 DB 값을 수정할 필요가 없다(이미지·API 서버가 동일 호스트 전제).
-UPDATE menus
-SET image_url = CONCAT('/imgs/menu/', CASE name
-    WHEN '아메리카노'   THEN 'americano'
-    WHEN '카페라떼'     THEN 'cafe-latte'
-    WHEN '바닐라라떼'   THEN 'vanilla-latte'
-    WHEN '연유라떼'     THEN 'condensed-milk-latte'
-    WHEN '카페모카'     THEN 'cafe-mocha'
-    WHEN '자몽에이드'   THEN 'grapefruit-ade'
-    WHEN '레몬에이드'   THEN 'lemon-ade'
-    WHEN '청포도에이드' THEN 'greengrape-ade'
-    WHEN '청귤에이드'   THEN 'green-tangerine-ade'
-    WHEN '라임에이드'   THEN 'lime-ade'
-    WHEN '캐모마일티'   THEN 'chamomile-tea'
-    WHEN '아이스티'     THEN 'iced-tea'
-    WHEN '루이보스티'   THEN 'rooibos-tea'
-    WHEN '유자차'       THEN 'yuja-tea'
-    WHEN '페퍼민트티'   THEN 'peppermint-tea'
-    WHEN '얼그레이티'   THEN 'earl-grey-tea'
-    WHEN '딸기스무디'   THEN 'strawberry-smoothie'
-    WHEN '망고스무디'   THEN 'mango-smoothie'
-    WHEN '바나나스무디' THEN 'banana-smoothie'
-    WHEN '키위스무디'   THEN 'kiwi-smoothie'
-    WHEN '치즈케이크'   THEN 'cheesecake'
-    WHEN '초코케이크'   THEN 'choco-cake'
-    WHEN '브라우니'     THEN 'brownie'
-    WHEN '마들렌'       THEN 'madeleine'
-    WHEN '스콘'         THEN 'scone'
-    ELSE CASE category
-        WHEN '커피'   THEN 'coffee'
-        WHEN '라떼'   THEN 'latte'
-        WHEN '에이드' THEN 'ade'
-        WHEN '티'     THEN 'tea'
-        WHEN '스무디' THEN 'smoothie'
-        WHEN '디저트' THEN 'dessert'
-        ELSE 'coffee'
-    END
-END, '.svg')
-WHERE store_id IN (SELECT id FROM stores WHERE owner_id = @owner_id)
-  AND (image_url IS NULL OR image_url = '');
+-- 3) 메뉴 이미지: 샘플 메뉴는 이미지 없이(빈값) 생성한다.
+--    이미지는 등록/수정 시 업로드한 경우에만 image_url에 채워진다(번들 SVG 미사용).
 
 -- 4) 메뉴 옵션 (카테고리 기반, 없을 때만 삽입) ----------------------------------
 --    메뉴 id는 매장마다 auto_increment라 직접 못 박으므로, 카테고리로 매칭해 일괄 INSERT.

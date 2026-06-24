@@ -38,11 +38,7 @@ public class Payment extends BaseEntity {
     @Column(name = "order_id", nullable = false)
     private Long orderId;
 
-    /** 포트원 imp_uid. CARD 결제만 채워짐. GIFTICON은 null. */
-    @Column(name = "portone_imp_uid", length = 100)
-    private String portoneImpUid;
-
-    /** 우리 쪽 결제 식별자 (포트원 merchant_uid). CARD 결제분에만 채워짐. */
+    /** 우리 쪽 결제 식별자(merchant uid). CARD 결제분에만 채워짐. */
     @Column(name = "merchant_uid", length = 100, unique = true)
     private String merchantUid;
 
@@ -83,12 +79,6 @@ public class Payment extends BaseEntity {
         this.status = PaymentStatus.READY;
     }
 
-    public void markPaid(String impUid) {
-        this.portoneImpUid = impUid;
-        this.status = PaymentStatus.PAID;
-        this.paidAt = LocalDateTime.now();
-    }
-
     /** 카카오페이 ready 성공 시 tid 저장. */
     public void assignKakaoPayTid(String tid) {
         this.kakaopayTid = tid;
@@ -104,7 +94,7 @@ public class Payment extends BaseEntity {
         return this.kakaopayTid != null;
     }
 
-    public void markPaidWithoutImpUid() {
+    public void markPaid() {
         this.status = PaymentStatus.PAID;
         this.paidAt = LocalDateTime.now();
     }

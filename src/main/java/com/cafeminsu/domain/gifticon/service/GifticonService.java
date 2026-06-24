@@ -91,7 +91,7 @@ public class GifticonService {
                 .build();
         Gifticon saved = gifticonRepository.save(gifticon);
 
-        // TODO: 포트원 결제 prepare 연동 (현재 MVP는 결제 검증 생략, 즉시 발행)
+        // TODO: 결제 prepare 연동 (현재 MVP는 결제 검증 생략, 즉시 발행)
         log.info("[Gifticon] purchased id={} sender={} amount={}",
                 saved.getId(), userId, req.amount());
         return new GifticonPurchaseRes(

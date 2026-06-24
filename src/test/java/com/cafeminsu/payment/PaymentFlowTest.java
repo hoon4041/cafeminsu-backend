@@ -29,12 +29,8 @@ class PaymentFlowTest extends IntegrationTestSupport {
         String merchantUid = objectMapper.readTree(prepareRes.getResponse().getContentAsString())
                 .at("/merchantUid").asText();
 
-        // 2) verify
-        mockMvc.perform(post("/api/payments/verify")
-                        .header("Authorization", fixtures.authHeader(s.customer))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.format("{\"impUid\":\"imp_test_001\",\"merchantUid\":\"%s\"}", merchantUid)))
-                .andExpect(jsonPath("$.status").value("PAID"));
+        // 2) 카카오페이 ready → approve → verify
+        payByKakao(s.customer, merchantUid, 10000);
     }
 
     @Test
@@ -83,17 +79,18 @@ class PaymentFlowTest extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("imp_fail로 시작하는 impUid → verify 실패 (mock 동작 검증)")
-    void verifyFailsForFailedImpUid() throws Exception {
+    @DisplayName("카카오페이 ready를 거치지 않은 결제는 verify 실패")
+    void verifyFailsWithoutKakaoPay() throws Exception {
         Setup s = setup();
         String merchantUid = prepare(s, 10000);
 
+        // ready/approve 없이 바로 verify → 카카오페이로 준비되지 않은 결제이므로 실패
         mockMvc.perform(post("/api/payments/verify")
                         .header("Authorization", fixtures.authHeader(s.customer))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format(
-                                "{\"impUid\":\"imp_fail_001\",\"merchantUid\":\"%s\"}", merchantUid)))
-                .andExpect(jsonPath("$.code").value("PAYMENT_AMOUNT_MISMATCH"));
+                                "{\"impUid\":\"any_token\",\"merchantUid\":\"%s\"}", merchantUid)))
+                .andExpect(jsonPath("$.code").value("PAYMENT_VERIFICATION_FAILED"));
     }
 
     @Test
@@ -163,5 +160,31 @@ class PaymentFlowTest extends IntegrationTestSupport {
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
                 .at("/merchantUid").asText();
+    }
+
+    /** 카카오페이 ready → approve → verify(PAID)까지 수행. */
+    void payByKakao(User customer, String merchantUid, int amount) throws Exception {
+        String auth = fixtures.authHeader(customer);
+        MvcResult readyRes = mockMvc.perform(post("/api/payments/kakaopay/ready")
+                        .header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.format("{\"merchantUid\":\"%s\",\"amount\":%d}", merchantUid, amount)))
+                .andExpect(status().isOk()).andReturn();
+        String tid = objectMapper.readTree(readyRes.getResponse().getContentAsString()).at("/tid").asText();
+
+        MvcResult approveRes = mockMvc.perform(post("/api/payments/kakaopay/approve")
+                        .header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.format(
+                                "{\"tid\":\"%s\",\"pgToken\":\"pg_ok\",\"merchantUid\":\"%s\"}", tid, merchantUid)))
+                .andExpect(status().isOk()).andReturn();
+        String paymentToken = objectMapper.readTree(approveRes.getResponse().getContentAsString())
+                .at("/paymentToken").asText();
+
+        mockMvc.perform(post("/api/payments/verify")
+                        .header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.format("{\"impUid\":\"%s\",\"merchantUid\":\"%s\"}", paymentToken, merchantUid)))
+                .andExpect(jsonPath("$.status").value("PAID"));
     }
 }

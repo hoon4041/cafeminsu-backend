@@ -131,21 +131,8 @@ INSERT INTO menus (store_id, name, description, price, category, is_available, c
   (@s_bonggok, '캐모마일티', '은은한 허브티',                     4500, '티',     1, NOW(), NOW()),
   (@s_bonggok, '망고스무디', '달콤한 망고 스무디',                6000, '스무디', 1, NOW(), NOW());
 
--- 4) 메뉴 이미지 (로컬 정적 SVG 일러스트 — 카테고리 기반) -----------------------
---    백엔드가 src/main/resources/static/imgs/menu/<카테고리>.svg 를 /imgs/menu/...로 제공.
---    @img_base는 호스트(로컬 기본). 배포 환경에선 실제 호스트로 바꾸세요.
-SET @img_base = 'http://localhost:8080';
-UPDATE menus
-SET image_url = CONCAT(@img_base, '/imgs/menu/', CASE category
-    WHEN '커피'   THEN 'coffee'
-    WHEN '라떼'   THEN 'latte'
-    WHEN '에이드' THEN 'ade'
-    WHEN '티'     THEN 'tea'
-    WHEN '스무디' THEN 'smoothie'
-    WHEN '디저트' THEN 'dessert'
-    ELSE 'coffee'
-END, '.svg')
-WHERE store_id IN (SELECT id FROM stores WHERE owner_id = @owner_id);
+-- 4) 메뉴 이미지: 시드 메뉴는 이미지 없이(빈값) 생성한다.
+--    이미지는 등록/수정 시 업로드한 경우에만 image_url에 채워진다(번들 SVG 미사용).
 
 -- 5) 메뉴 옵션 (카테고리 기반 자동 생성) ----------------------------------------
 --    메뉴 id는 매장마다 auto_increment라 직접 못 박으므로, 카테고리로 매칭해 일괄 INSERT.

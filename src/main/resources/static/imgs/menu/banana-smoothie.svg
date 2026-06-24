@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="바나나스무디">
-  <rect width="400" height="400" rx="32" fill="#FFF3C4"/>
-  <rect x="232" y="62" width="14" height="210" rx="7" fill="#6BBF59" transform="rotate(10 239 165)"/>
-  <path d="M150 152 h100 l-10 168 a14 14 0 0 1 -14 12 h-52 a14 14 0 0 1 -14 -12 z" fill="#FFFAE0" opacity="0.9"/>
-  <path d="M156 176 h88 l-8 144 a12 12 0 0 1 -12 10 h-48 a12 12 0 0 1 -12 -10 z" fill="#F2D45C"/>
-  <path d="M150 152 q50 -48 100 0 z" fill="#FFFFFF"/>
-  <circle cx="200" cy="120" r="10" fill="#E8C23A"/>
-  <g fill="#FFFAE0" opacity="0.7"><circle cx="186" cy="232" r="6"/><circle cx="214" cy="262" r="5"/></g>
-</svg>

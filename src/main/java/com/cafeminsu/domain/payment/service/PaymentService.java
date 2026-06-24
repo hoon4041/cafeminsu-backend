@@ -52,7 +52,6 @@ public class PaymentService {
     private final OrderItemRepository orderItemRepository;
     private final OrderRepository orderRepository;
     private final StoreRepository storeRepository;
-    private final PortoneClient portoneClient;
     private final KakaoPayClient kakaoPayClient;
 
     /* =========================================================
@@ -62,7 +61,7 @@ public class PaymentService {
      * - 주문 상태가 PENDING이어야 함 (이미 결제했거나 취소된 주문은 불가)
      * - 금액 합계 검증: gifticonAmount + cardAmount == order.totalAmount
      * - 분할이면 Payment row 2개 생성, 단일이면 1개
-     * - merchantUid 발급해서 응답 (포트원 결제창 호출용)
+     * - merchantUid 발급해서 응답 (카카오페이 ready 호출용)
      * ========================================================= */
     @Transactional
     public PaymentPrepareRes prepare(Long userId, PaymentPrepareReq req) {
@@ -131,9 +130,9 @@ public class PaymentService {
     /* =========================================================
      * 2) 결제 검증
      *
-     * - 포트원에 imp_uid로 결제 조회
-     * - 우리 DB amount와 일치 확인 (금액 위조 방어)
-     * - 일치하면 PAID, 불일치하면 FAILED (운영에선 환불도)
+     * - 카드 결제는 카카오페이 approve에서 이미 캡처·금액검증됨
+     * - verify는 approve가 저장한 aid와 클라가 보낸 paymentToken 일치만 대조
+     * - 일치하면 PAID, 불일치하면 FAILED
      * - GIFTICON row가 있으면 함께 PAID 처리
      * ========================================================= */
     @Transactional
@@ -151,28 +150,21 @@ public class PaymentService {
                     "이미 처리된 결제입니다.");
         }
 
-        if (cardPayment.isKakaoPay()) {
-            // 카카오페이는 approve 단계에서 이미 결제가 캡처·금액검증됨.
-            // verify는 넘어온 paymentToken(=aid)이 approve 때 저장한 aid와 일치하는지만 대조한다.
-            if (!req.impUid().equals(cardPayment.getKakaopayAid())) {
-                cardPayment.markFailed();
-                log.warn("[Payment] verify FAIL(kakaopay) paymentId={} token mismatch", cardPayment.getId());
-                throw new BaseException(BaseResponseStatus.PAYMENT_VERIFICATION_FAILED);
-            }
-            cardPayment.markPaidWithoutImpUid();
-        } else {
-            // 포트원에서 실제 결제 금액 조회
-            PortoneClient.VerificationResult result = portoneClient.verify(
-                    req.impUid(), cardPayment.getAmount());
-
-            if (!result.isPaid() || result.amount() != cardPayment.getAmount()) {
-                cardPayment.markFailed();
-                log.warn("[Payment] verify FAIL paymentId={} portoneStatus={} portoneAmount={}",
-                        cardPayment.getId(), result.status(), result.amount());
-                throw new BaseException(BaseResponseStatus.PAYMENT_AMOUNT_MISMATCH);
-            }
-            cardPayment.markPaid(req.impUid());
+        // 카드 결제는 카카오페이로만 승인된다. ready/approve를 거치지 않은 결제는 확정 불가.
+        if (!cardPayment.isKakaoPay()) {
+            cardPayment.markFailed();
+            log.warn("[Payment] verify FAIL paymentId={} 카카오페이로 준비되지 않은 결제", cardPayment.getId());
+            throw new BaseException(BaseResponseStatus.PAYMENT_VERIFICATION_FAILED,
+                    "카카오페이로 준비되지 않은 결제입니다.");
         }
+        // 카카오페이는 approve 단계에서 이미 결제가 캡처·금액검증됨.
+        // verify는 넘어온 paymentToken(=aid)이 approve 때 저장한 aid와 일치하는지만 대조한다.
+        if (!req.impUid().equals(cardPayment.getKakaopayAid())) {
+            cardPayment.markFailed();
+            log.warn("[Payment] verify FAIL(kakaopay) paymentId={} token mismatch", cardPayment.getId());
+            throw new BaseException(BaseResponseStatus.PAYMENT_VERIFICATION_FAILED);
+        }
+        cardPayment.markPaid();
 
         // 같은 주문의 GIFTICON 결제분도 함께 PAID 처리
         paymentRepository.findAllByOrderId(order.getId()).stream()
@@ -180,7 +172,7 @@ public class PaymentService {
                         && p.getStatus() == PaymentStatus.READY)
                 .forEach(p -> {
                     // TODO: 기프티콘 잔액 차감 (Gifticon 도메인 구현 후)
-                    p.markPaidWithoutImpUid();
+                    p.markPaid();
                 });
 
         log.info("[Payment] verify OK paymentId={} order={}", cardPayment.getId(), order.getId());

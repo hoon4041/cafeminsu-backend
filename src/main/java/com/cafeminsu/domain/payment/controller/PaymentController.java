@@ -36,8 +36,8 @@ public class PaymentController {
 
     /* 1. 결제 준비 */
     @Operation(summary = "결제 준비",
-            description = "포트원 결제창 호출 전 단계. 분할결제(gifticon+card) 지원. " +
-                    "응답의 merchantUid를 포트원 SDK에 전달하세요.")
+            description = "결제 준비 단계. 분할결제(gifticon+card) 지원. " +
+                    "응답의 merchantUid로 카카오페이 ready를 호출하세요.")
     @PostMapping("/api/payments/prepare")
     public PaymentPrepareRes prepare(@LoginUserId Long userId,
                                      @Valid @RequestBody PaymentPrepareReq req) {
@@ -46,8 +46,8 @@ public class PaymentController {
 
     /* 2. 결제 검증 */
     @Operation(summary = "결제 검증",
-            description = "포트원/카카오페이 결제 완료 후 콜백. impUid로 서버가 다시 조회해 금액을 검증합니다. " +
-                    "카카오페이는 approve 응답의 paymentToken을 impUid 슬롯에 넣어 호출하세요.")
+            description = "카카오페이 결제 완료 후 콜백. approve 응답의 paymentToken을 impUid 슬롯에 넣어 호출하면 " +
+                    "서버가 approve 때 저장한 승인번호와 대조해 결제를 확정합니다.")
     @PostMapping("/api/payments/verify")
     public PaymentVerifyRes verify(@LoginUserId Long userId,
                                    @Valid @RequestBody PaymentVerifyReq req) {

@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="아이스티">
-  <rect width="400" height="400" rx="32" fill="#FFE3C2"/>
-  <path d="M150 110 h100 l-12 200 a16 16 0 0 1 -16 14 h-44 a16 16 0 0 1 -16 -14 z" fill="#FFFFFF" opacity="0.30"/>
-  <path d="M156 150 h88 l-10 160 a14 14 0 0 1 -14 12 h-40 a14 14 0 0 1 -14 -12 z" fill="#E8A85C"/>
-  <rect x="236" y="70" width="12" height="150" rx="6" fill="#FFFFFF" opacity="0.85" transform="rotate(12 242 145)"/>
-  <g fill="#FFFFFF" opacity="0.5"><rect x="166" y="166" width="34" height="34" rx="6" transform="rotate(15 183 183)"/><rect x="202" y="206" width="30" height="30" rx="6" transform="rotate(-12 217 221)"/></g>
-  <circle cx="248" cy="120" r="24" fill="#FFB37A"/>
-  <circle cx="248" cy="120" r="24" fill="none" stroke="#FFFFFF" stroke-width="4"/>
-</svg>
