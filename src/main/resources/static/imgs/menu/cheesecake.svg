@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="치즈케이크">
-  <rect width="400" height="400" rx="32" fill="#FBE9C8"/>
-  <ellipse cx="200" cy="312" rx="110" ry="20" fill="#E7C98F"/>
-  <path d="M120 250 L200 120 L280 250 Z" fill="#F5D98B"/>
-  <path d="M120 250 L200 120 L200 250 Z" fill="#FBE7A8"/>
-  <path d="M120 250 h160 v22 a10 10 0 0 1 -10 10 h-140 a10 10 0 0 1 -10 -10 z" fill="#C79A5B"/>
-  <circle cx="200" cy="152" r="12" fill="#E0457A"/>
-  <path d="M200 144 q6 -8 0 -14 q-6 6 0 14 z" fill="#5BA85B"/>
-</svg>

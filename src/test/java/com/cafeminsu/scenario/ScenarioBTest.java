@@ -29,7 +29,7 @@ class ScenarioBTest extends IntegrationTestSupport {
         /* === 주문 생성 + 결제 === */
         long orderId = createOrder(customer, storeId, menuId, 2);
         String merchantUid = prepare(customer, orderId, 9000);
-        verify(customer, merchantUid);
+        payByKakao(customer, merchantUid, 9000);
 
         /* === 점주 accept → ready → complete === */
         String ownerAuth = fixtures.authHeader(owner);
@@ -114,12 +114,29 @@ class ScenarioBTest extends IntegrationTestSupport {
                 .at("/merchantUid").asText();
     }
 
-    private void verify(User customer, String merchantUid) throws Exception {
-        mockMvc.perform(post("/api/payments/verify")
-                        .header("Authorization", fixtures.authHeader(customer))
+    /** 카카오페이 ready → approve → verify(PAID)까지 수행. */
+    private void payByKakao(User customer, String merchantUid, int amount) throws Exception {
+        String auth = fixtures.authHeader(customer);
+        MvcResult readyRes = mockMvc.perform(post("/api/payments/kakaopay/ready")
+                        .header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.format("{\"merchantUid\":\"%s\",\"amount\":%d}", merchantUid, amount)))
+                .andExpect(status().isOk()).andReturn();
+        String tid = objectMapper.readTree(readyRes.getResponse().getContentAsString()).at("/tid").asText();
+
+        MvcResult approveRes = mockMvc.perform(post("/api/payments/kakaopay/approve")
+                        .header("Authorization", auth)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format(
-                                "{\"impUid\":\"imp_test_scenarioB\",\"merchantUid\":\"%s\"}", merchantUid)))
+                                "{\"tid\":\"%s\",\"pgToken\":\"pg_ok\",\"merchantUid\":\"%s\"}", tid, merchantUid)))
+                .andExpect(status().isOk()).andReturn();
+        String paymentToken = objectMapper.readTree(approveRes.getResponse().getContentAsString())
+                .at("/paymentToken").asText();
+
+        mockMvc.perform(post("/api/payments/verify")
+                        .header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.format("{\"impUid\":\"%s\",\"merchantUid\":\"%s\"}", paymentToken, merchantUid)))
                 .andExpect(jsonPath("$.status").value("PAID"));
     }
 }

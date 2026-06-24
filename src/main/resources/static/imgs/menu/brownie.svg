@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="브라우니">
-  <rect width="400" height="400" rx="32" fill="#E3D2C2"/>
-  <ellipse cx="200" cy="300" rx="100" ry="18" fill="#C7AE97"/>
-  <rect x="128" y="172" width="144" height="108" rx="12" fill="#4A2C1A"/>
-  <rect x="128" y="172" width="144" height="32" rx="12" fill="#5E3A24"/>
-  <circle cx="170" cy="160" r="8" fill="#3A2114"/>
-  <circle cx="205" cy="152" r="9" fill="#3A2114"/>
-  <circle cx="238" cy="162" r="7" fill="#3A2114"/>
-</svg>

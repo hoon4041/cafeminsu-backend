@@ -20,7 +20,7 @@ import java.util.UUID;
  * 인증 헤더: {@code Authorization: SECRET_KEY {KAKAOPAY_SECRET_KEY}}.
  * 가맹점 CID·Secret key는 서버 환경변수로만 보관하며 절대 로그에 남기지 않는다.
  *
- * Secret key가 비어 있는 로컬/CI 환경에서는 mock으로 동작한다(PortoneClient와 동일 패턴):
+ * Secret key가 비어 있는 로컬/CI 환경에서는 mock으로 동작한다:
  *  - ready  : 가짜 tid + approval_url(딥링크)을 redirectUrl로 반환 → 앱/테스트 흐름 진행 가능
  *  - approve: pgToken이 "fail"로 시작하면 실패, 그 외엔 가짜 aid + 요청 금액 반환
  */
