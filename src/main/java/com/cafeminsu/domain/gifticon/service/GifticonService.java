@@ -1,13 +1,12 @@
 package com.cafeminsu.domain.gifticon.service;
 
+import com.cafeminsu.domain.gifticon.dto.GifticonClaimRes;
 import com.cafeminsu.domain.gifticon.dto.GifticonDetailRes;
 import com.cafeminsu.domain.gifticon.dto.GifticonPurchaseReq;
 import com.cafeminsu.domain.gifticon.dto.GifticonPurchaseRes;
-import com.cafeminsu.domain.gifticon.dto.GifticonShareRes;
 import com.cafeminsu.domain.gifticon.dto.GifticonUsageRes;
 import com.cafeminsu.domain.gifticon.dto.GifticonUseReq;
 import com.cafeminsu.domain.gifticon.dto.GifticonUseRes;
-import com.cafeminsu.domain.gifticon.dto.GifticonValidateRes;
 import com.cafeminsu.domain.gifticon.dto.MyGifticonRes;
 import com.cafeminsu.domain.gifticon.dto.ReceivedGifticonRes;
 import com.cafeminsu.domain.gifticon.dto.SentGifticonRes;
@@ -25,17 +24,18 @@ import com.cafeminsu.global.common.BaseResponseStatus;
 import com.cafeminsu.global.exception.BaseException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -49,68 +49,103 @@ public class GifticonService {
     /** 스탬프 10개 적립 시 지급되는 보상 금액(원) */
     private static final int STAMP_REWARD_AMOUNT = 2000;
 
+    /** 클레임 코드 문자 집합 — 혼동되는 0/O/1/I/L 제외. */
+    private static final char[] CLAIM_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789".toCharArray();
+    private static final SecureRandom RANDOM = new SecureRandom();
+
     private final GifticonRepository gifticonRepository;
     private final GifticonUsageRepository usageRepository;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final StoreRepository storeRepository;
 
+    /** 공유 링크 베이스 URL. 실제 값은 application-{profile}.yml/환경변수로 주입. */
+    @Value("${gifticon.share-base-url:https://cafeminsu.example/gift}")
+    private String shareBaseUrl;
+
     /* =========================================================
      * 1) 기프티콘 구매·발행
+     *
+     * 친구 선물(링크 방식): 수신자 미지정으로 발행하고 claimCode/shareLink를 반환한다.
+     * 구매자가 그 링크를 카카오톡 메시지/공유로 전달하면 받는 사람이 claim(등록)으로 귀속한다.
+     * receiverId(회원 즉시 지정)/receiverPhone(비회원)은 하위호환으로 선택 허용.
      * ========================================================= */
     @Transactional
     public GifticonPurchaseRes purchase(Long userId, GifticonPurchaseReq req) {
-        // receiverId 또는 receiverPhone 중 하나는 필수
-        if (req.receiverId() == null && !StringUtils.hasText(req.receiverPhone())) {
-            throw new BaseException(BaseResponseStatus.INVALID_REQUEST,
-                    "receiverId 또는 receiverPhone 중 하나는 필수입니다.");
-        }
-        // receiverId 검증
+        // receiverId가 주어진 경우에만 존재 검증 (미지정이면 link 방식)
         if (req.receiverId() != null && !userRepository.existsById(req.receiverId())) {
             throw new BaseException(BaseResponseStatus.USER_NOT_FOUND);
         }
 
-        String qrCode = UUID.randomUUID().toString();
+        String claimCode = generateUniqueClaimCode();
         LocalDateTime expiresAt = LocalDateTime.now().plusMonths(DEFAULT_VALIDITY_MONTHS);
 
         Gifticon gifticon = Gifticon.builder()
                 .senderId(userId)
-                .receiverId(req.receiverId())
+                .receiverId(req.receiverId())       // null이면 미귀속(받는 사람이 claim)
                 .receiverPhone(req.receiverPhone())
                 .amount(req.amount())
-                .qrCode(qrCode)
+                .claimToken(claimCode)
                 .message(req.message())
                 .expiresAt(expiresAt)
                 .build();
         Gifticon saved = gifticonRepository.save(gifticon);
 
-        // TODO: 포트원 결제 prepare 호출 → merchantUid 발급. 현재는 mock UID.
-        String merchantUid = "gift_%d_%s".formatted(saved.getId(),
-                UUID.randomUUID().toString().substring(0, 8));
-
+        // TODO: 포트원 결제 prepare 연동 (현재 MVP는 결제 검증 생략, 즉시 발행)
         log.info("[Gifticon] purchased id={} sender={} amount={}",
                 saved.getId(), userId, req.amount());
-        return new GifticonPurchaseRes(saved.getId(), saved.getQrCode(), merchantUid);
+        return new GifticonPurchaseRes(
+                saved.getId(), claimCode, buildShareLink(claimCode), saved.getAmount(), saved.getMessage());
+    }
+
+    /* =========================================================
+     * 1-2) 기프티콘 등록 (claim) — 받는 사람이 코드로 자기 계정에 귀속
+     *
+     * - 유효 코드 → 호출자(JWT) 계정에 귀속, 이후 /my 에 노출
+     * - 본인이 이미 등록함 → 멱등 성공
+     * - 타인이 이미 등록함 → ALREADY_CLAIMED(409)
+     * - 만료/없음 → 4xx
+     * - 발신자 본인이 자기 코드 등록도 허용(본인 보관용)
+     * ========================================================= */
+    @Transactional
+    public GifticonClaimRes claim(Long userId, String claimCode) {
+        // 동시 등록 직렬화: 같은 링크를 받은 두 사람이 동시에 눌러도 한쪽만 귀속.
+        Gifticon g = gifticonRepository.findByClaimTokenForUpdate(claimCode)
+                .orElseThrow(() -> new BaseException(BaseResponseStatus.GIFTICON_INVALID_CODE));
+
+        if (g.isExpired()) {
+            throw new BaseException(BaseResponseStatus.GIFTICON_EXPIRED);
+        }
+        if (g.isClaimed()) {
+            if (g.isReceivedBy(userId)) {
+                return GifticonClaimRes.from(g);   // 멱등 성공
+            }
+            throw new BaseException(BaseResponseStatus.GIFTICON_ALREADY_CLAIMED);
+        }
+
+        g.claimBy(userId);
+        log.info("[Gifticon] claimed id={} receiver={}", g.getId(), userId);
+        return GifticonClaimRes.from(g);
     }
 
     /* =========================================================
      * 1-1) 스탬프 적립 보상 기프티콘 발급 (StampService에서 호출)
      *
-     * 본인 전용(sender=receiver=본인), 전 매장 공용 금액형, 선물 불가(transferable=false).
+     * 본인 전용(sender=receiver=본인) — 발급 즉시 본인 귀속이므로 타인은 claim 불가.
+     * 전 매장 공용 금액형.
      * ========================================================= */
     @Transactional
     public Long issueStampReward(Long userId) {
-        String qrCode = UUID.randomUUID().toString();
+        String claimCode = generateUniqueClaimCode();
         LocalDateTime expiresAt = LocalDateTime.now().plusMonths(DEFAULT_VALIDITY_MONTHS);
 
         Gifticon reward = Gifticon.builder()
                 .senderId(userId)
-                .receiverId(userId)   // 본인 전용
+                .receiverId(userId)   // 본인 전용 (이미 귀속됨)
                 .amount(STAMP_REWARD_AMOUNT)
-                .qrCode(qrCode)
+                .claimToken(claimCode)
                 .message("스탬프 적립 보상")
                 .expiresAt(expiresAt)
-                .transferable(false)  // 선물 불가
                 .build();
         Gifticon saved = gifticonRepository.save(reward);
 
@@ -160,27 +195,12 @@ public class GifticonService {
         if (!g.isSentBy(userId) && !g.isReceivedBy(userId)) {
             throw new BaseException(BaseResponseStatus.ACCESS_DENIED);
         }
-        return GifticonDetailRes.from(g);
+        // claimCode/shareLink는 발신자가 재전송할 수 있게 함께 노출
+        return GifticonDetailRes.of(g, buildShareLink(g.getClaimToken()));
     }
 
     /* =========================================================
-     * 6) QR 스캔 검증
-     * ========================================================= */
-    public GifticonValidateRes validate(String qrCode) {
-        Gifticon g = gifticonRepository.findByQrCode(qrCode)
-                .orElseThrow(() -> new BaseException(BaseResponseStatus.GIFTICON_INVALID_QR));
-
-        boolean valid = g.isUsable();
-        String ownerNickname = null;
-        if (g.getReceiverId() != null) {
-            ownerNickname = userRepository.findById(g.getReceiverId())
-                    .map(User::getNickname).orElse(null);
-        }
-        return new GifticonValidateRes(g.getId(), g.getBalance(), ownerNickname, valid);
-    }
-
-    /* =========================================================
-     * 7) 기프티콘 사용 (차감) — 비관적 락
+     * 6) 기프티콘 사용 (차감) — 비관적 락
      * ========================================================= */
     @Transactional
     public GifticonUseRes use(Long gifticonId, GifticonUseReq req) {
@@ -207,25 +227,7 @@ public class GifticonService {
     }
 
     /* =========================================================
-     * 8) 공유 링크 발급 (선물하기)
-     * ========================================================= */
-    public GifticonShareRes share(Long userId, Long gifticonId) {
-        Gifticon g = findOrThrow(gifticonId);
-        if (!g.isSentBy(userId)) {
-            throw new BaseException(BaseResponseStatus.ACCESS_DENIED);
-        }
-        // 본인 전용으로 발급된 기프티콘(예: 스탬프 보상)은 선물 불가
-        if (!g.isTransferable()) {
-            throw new BaseException(BaseResponseStatus.GIFTICON_NOT_TRANSFERABLE);
-        }
-        // TODO: 카카오 메시지 API 연동. 현재는 단순 링크.
-        String shareLink = "https://cafeminsu.example/gifticon/" + g.getQrCode();
-        String deepLink = "cafeminsu://gifticon/" + g.getQrCode();
-        return new GifticonShareRes(shareLink, deepLink);
-    }
-
-    /* =========================================================
-     * 9) 사용 내역
+     * 7) 사용 내역
      * ========================================================= */
     public List<GifticonUsageRes> getUsages(Long userId, Long gifticonId) {
         Gifticon g = findOrThrow(gifticonId);
@@ -259,6 +261,31 @@ public class GifticonService {
     private Gifticon findOrThrow(Long id) {
         return gifticonRepository.findById(id)
                 .orElseThrow(() -> new BaseException(BaseResponseStatus.GIFTICON_NOT_FOUND));
+    }
+
+    /** GFT-XXXX-XXXX 형식의 추측 불가 코드 발급. UNIQUE 충돌 시 재시도. */
+    private String generateUniqueClaimCode() {
+        for (int attempt = 0; attempt < 5; attempt++) {
+            String code = "GFT-" + randomBlock(4) + "-" + randomBlock(4);
+            if (!gifticonRepository.existsByClaimToken(code)) {
+                return code;
+            }
+        }
+        // 사실상 도달 불가 — 5회 연속 충돌이면 UUID로 폴백
+        return "GFT-" + UUID.randomUUID().toString().substring(0, 13).toUpperCase().replace("-", "");
+    }
+
+    private String randomBlock(int len) {
+        StringBuilder sb = new StringBuilder(len);
+        for (int i = 0; i < len; i++) {
+            sb.append(CLAIM_ALPHABET[RANDOM.nextInt(CLAIM_ALPHABET.length)]);
+        }
+        return sb.toString();
+    }
+
+    /** 공유 링크 — 받는 사람이 눌러 클레임 페이지/딥링크로 진입하고 code로 등록. */
+    private String buildShareLink(String claimCode) {
+        return shareBaseUrl + "?code=" + claimCode;
     }
 
     private Map<Long, String> nicknameMap(List<Long> userIds) {

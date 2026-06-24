@@ -12,11 +12,20 @@ import java.util.Optional;
 
 public interface GifticonRepository extends JpaRepository<Gifticon, Long> {
 
-    Optional<Gifticon> findByQrCode(String qrCode);
+    /** 클레임 코드 발급 시 중복 회피용. */
+    boolean existsByClaimToken(String claimToken);
+
+    /**
+     * 등록(claim) 시 row를 비관적 락으로 잡음.
+     * 같은 링크를 받은 두 사람이 동시에 등록을 눌러도 한쪽만 귀속되도록 직렬화.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT g FROM Gifticon g WHERE g.claimToken = :token")
+    Optional<Gifticon> findByClaimTokenForUpdate(@Param("token") String token);
 
     /**
      * 사용/차감 시 row를 비관적 락으로 잡음.
-     * 같은 기프티콘 두 키오스크 동시 스캔 시 한쪽은 대기 → 순차 처리.
+     * 같은 기프티콘 동시 차감 시 한쪽은 대기 → 순차 처리.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT g FROM Gifticon g WHERE g.id = :id")

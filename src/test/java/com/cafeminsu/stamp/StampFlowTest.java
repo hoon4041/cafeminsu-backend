@@ -108,8 +108,8 @@ class StampFlowTest extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("음료 10잔 → 스탬프 0으로 차감 + 2000원 보상 기프티콘 발급, 선물 불가(2705)")
-    void tenDrinksIssuesNonTransferableReward() throws Exception {
+    @DisplayName("음료 10잔 → 스탬프 0으로 차감 + 2000원 보상 기프티콘 발급, 본인 귀속이라 타인 claim 불가(2705)")
+    void tenDrinksIssuesSelfBoundReward() throws Exception {
         Setup s = setup();
         completeOrder(s.owner, createOrder(s, 10));
         String customerAuth = fixtures.authHeader(s.customer);
@@ -126,10 +126,19 @@ class StampFlowTest extends IntegrationTestSupport {
         long gifticonId = objectMapper.readTree(my.getResponse().getContentAsString())
                 .at("/0/gifticonId").asLong();
 
-        // 선물(공유) 시도 → 차단 (GIFTICON_NOT_TRANSFERABLE)
-        mockMvc.perform(post("/api/gifticons/" + gifticonId + "/share")
+        // 보상 기프티콘은 발급 즉시 본인 귀속 → 타인이 코드로 claim 시도해도 차단(ALREADY_CLAIMED)
+        MvcResult detail = mockMvc.perform(get("/api/gifticons/" + gifticonId)
                         .header("Authorization", customerAuth))
-                .andExpect(jsonPath("$.code").value("GIFTICON_NOT_TRANSFERABLE"));
+                .andExpect(status().isOk()).andReturn();
+        String claimCode = objectMapper.readTree(detail.getResponse().getContentAsString())
+                .at("/claimCode").asText();
+
+        User stranger = fixtures.createCustomer("타인");
+        mockMvc.perform(post("/api/gifticons/claim")
+                        .header("Authorization", fixtures.authHeader(stranger))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"claimCode\":\"" + claimCode + "\"}"))
+                .andExpect(jsonPath("$.code").value("GIFTICON_ALREADY_CLAIMED"));
     }
 
     /* ===== helpers ===== */
