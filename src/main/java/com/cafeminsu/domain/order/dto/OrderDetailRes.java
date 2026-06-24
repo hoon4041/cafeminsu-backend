@@ -6,6 +6,7 @@ import com.cafeminsu.domain.order.entity.OrderItemOption;
 import com.cafeminsu.domain.order.entity.OrderStatus;
 import com.cafeminsu.domain.order.entity.OrderType;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -73,6 +74,7 @@ public record OrderDetailRes(
         }
     }
 
+    @Schema(name = "OrderOptionRes", description = "주문 상세의 옵션 (스냅샷)")
     public record OptionRes(
             Long optionId,
             String optionGroup,

@@ -2,6 +2,7 @@ package com.cafeminsu.domain.menu.dto;
 
 import com.cafeminsu.domain.menu.entity.Menu;
 import com.cafeminsu.domain.menu.entity.MenuOption;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 
@@ -32,6 +33,7 @@ public record MenuDetailRes(
         );
     }
 
+    @Schema(name = "MenuOptionRes", description = "메뉴 상세의 옵션")
     public record OptionRes(
             Long id,
             String group,
