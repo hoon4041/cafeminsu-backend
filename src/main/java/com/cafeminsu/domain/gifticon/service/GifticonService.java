@@ -155,6 +155,33 @@ public class GifticonService {
     }
 
     /* =========================================================
+     * 1-3) NFC 태깅 보상 쿠폰 발급 (NfcService에서 호출)
+     *
+     * 스탬프 보상과 동일하게 본인 전용(sender=receiver=본인) 금액형 쿠폰을 발급한다.
+     * 발급 즉시 본인 귀속이라 타인이 claim할 수 없다. 전 매장 공용.
+     * 어뷰징(하루 1회) 통제는 호출 측(NfcService)이 책임진다.
+     * ========================================================= */
+    @Transactional
+    public Gifticon issueNfcReward(Long userId, int amount, String message) {
+        String claimCode = generateUniqueClaimCode();
+        LocalDateTime expiresAt = LocalDateTime.now().plusMonths(DEFAULT_VALIDITY_MONTHS);
+
+        Gifticon reward = Gifticon.builder()
+                .senderId(userId)
+                .receiverId(userId)   // 본인 전용 (이미 귀속됨)
+                .amount(amount)
+                .claimToken(claimCode)
+                .message(StringUtils.hasText(message) ? message : "NFC 적립 쿠폰")
+                .expiresAt(expiresAt)
+                .build();
+        Gifticon saved = gifticonRepository.save(reward);
+
+        log.info("[Gifticon] nfc reward issued id={} user={} amount={}",
+                saved.getId(), userId, amount);
+        return saved;
+    }
+
+    /* =========================================================
      * 2) 보낸 기프티콘 목록
      * ========================================================= */
     public List<SentGifticonRes> getSent(Long userId) {
