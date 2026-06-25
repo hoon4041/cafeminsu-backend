@@ -6,8 +6,6 @@ import com.cafeminsu.domain.gifticon.dto.GifticonDetailRes;
 import com.cafeminsu.domain.gifticon.dto.GifticonPurchaseReq;
 import com.cafeminsu.domain.gifticon.dto.GifticonPurchaseRes;
 import com.cafeminsu.domain.gifticon.dto.GifticonUsageRes;
-import com.cafeminsu.domain.gifticon.dto.GifticonUseReq;
-import com.cafeminsu.domain.gifticon.dto.GifticonUseRes;
 import com.cafeminsu.domain.gifticon.dto.MyGifticonRes;
 import com.cafeminsu.domain.gifticon.dto.ReceivedGifticonRes;
 import com.cafeminsu.domain.gifticon.dto.SentGifticonRes;
@@ -86,16 +84,7 @@ public class GifticonController {
         return gifticonService.getDetail(userId, gifticonId);
     }
 
-    /* 6. 기프티콘 사용 (차감) */
-    @Operation(summary = "기프티콘 차감",
-            description = "주문 결제 시 호출. 비관적 락으로 동시 차감 방지.")
-    @PostMapping("/{gifticonId}/use")
-    public GifticonUseRes use(@PathVariable Long gifticonId,
-                              @Valid @RequestBody GifticonUseReq req) {
-        return gifticonService.use(gifticonId, req);
-    }
-
-    /* 7. 사용 내역 */
+    /* 6. 사용 내역 */
     @Operation(summary = "기프티콘 사용 내역")
     @GetMapping("/{gifticonId}/usages")
     public List<GifticonUsageRes> usages(@LoginUserId Long userId,

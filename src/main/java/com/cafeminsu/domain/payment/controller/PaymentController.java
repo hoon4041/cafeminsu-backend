@@ -36,18 +36,20 @@ public class PaymentController {
 
     /* 1. 결제 준비 */
     @Operation(summary = "결제 준비",
-            description = "결제 준비 단계. 분할결제(gifticon+card) 지원. " +
-                    "응답의 merchantUid로 카카오페이 ready를 호출하세요.")
+            description = "orderId(+useGifticonId)만 보내면 서버가 분할 금액을 계산합니다. " +
+                    "응답 status=READY면 카드 결제분이 있어 cardAmount로 카카오페이 ready를 호출, " +
+                    "status=PAID면 전액 기프티콘으로 즉시 확정된 것(카카오페이·verify 불필요).")
     @PostMapping("/api/payments/prepare")
     public PaymentPrepareRes prepare(@LoginUserId Long userId,
                                      @Valid @RequestBody PaymentPrepareReq req) {
         return paymentService.prepare(userId, req);
     }
 
-    /* 2. 결제 검증 */
-    @Operation(summary = "결제 검증",
-            description = "카카오페이 결제 완료 후 콜백. approve 응답의 paymentToken을 impUid 슬롯에 넣어 호출하면 " +
-                    "서버가 approve 때 저장한 승인번호와 대조해 결제를 확정합니다.")
+    /* 2. 결제 검증 (카드 결제 확정 전용) */
+    @Operation(summary = "결제 검증 (카드)",
+            description = "카드 결제 확정 전용. 카카오페이 approve 응답의 paymentToken을 impUid 슬롯에 넣어 호출하면 " +
+                    "서버가 approve 때 저장한 승인번호와 대조해 확정합니다(분할결제면 기프티콘분도 함께 차감). " +
+                    "전액 기프티콘은 prepare에서 이미 확정되므로 호출하지 않습니다.")
     @PostMapping("/api/payments/verify")
     public PaymentVerifyRes verify(@LoginUserId Long userId,
                                    @Valid @RequestBody PaymentVerifyReq req) {

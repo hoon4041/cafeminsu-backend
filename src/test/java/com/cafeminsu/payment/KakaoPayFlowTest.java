@@ -137,7 +137,7 @@ class KakaoPayFlowTest extends IntegrationTestSupport {
         MvcResult pRes = mockMvc.perform(post("/api/payments/prepare")
                         .header("Authorization", fixtures.authHeader(customer))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.format("{\"orderId\":%d,\"cardAmount\":10000}", orderId)))
+                        .content(String.format("{\"orderId\":%d}", orderId)))
                 .andExpect(status().isOk()).andReturn();
         String merchantUid = objectMapper.readTree(pRes.getResponse().getContentAsString())
                 .at("/merchantUid").asText();

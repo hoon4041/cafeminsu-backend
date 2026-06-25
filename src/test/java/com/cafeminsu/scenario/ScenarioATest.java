@@ -85,7 +85,7 @@ class ScenarioATest extends IntegrationTestSupport {
         MvcResult prepareRes = mockMvc.perform(post("/api/payments/prepare")
                         .header("Authorization", fixtures.authHeader(customer))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.format("{\"orderId\":%d,\"cardAmount\":10000}", orderId)))
+                        .content(String.format("{\"orderId\":%d}", orderId)))
                 .andExpect(status().isOk())
                 .andReturn();
         String merchantUid = objectMapper.readTree(prepareRes.getResponse().getContentAsString())
