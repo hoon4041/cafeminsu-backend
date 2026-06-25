@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 public class OrderService {
 
     /** 홈 화면 '최근 주문' 빠른 표시용 노출 건수. */
-    private static final int RECENT_ORDER_LIMIT = 5;
+    private static final int RECENT_ORDER_LIMIT = 2;
 
     private final OrderRepository orderRepository;
     private final StoreRepository storeRepository;
@@ -150,11 +150,11 @@ public class OrderService {
     }
 
     /* =========================================================
-     * 3-1) 최근 주문 N건 — 홈 화면용 (상태 무관, 최신순 5건). items·옵션 포함
+     * 3-1) 최근 주문 N건 — 홈 화면용 (DONE 상태만, 최신순 2건). items·옵션 포함
      * ========================================================= */
     public List<OrderDetailRes> getRecentOrders(Long userId) {
-        var orders = orderRepository.findByUserIdOrderByIdDesc(
-                userId, PageRequest.of(0, RECENT_ORDER_LIMIT));
+        var orders = orderRepository.findByUserIdAndStatusOrderByIdDesc(
+                userId, OrderStatus.DONE, PageRequest.of(0, RECENT_ORDER_LIMIT));
 
         return toDetailResponses(orders.getContent());
     }
