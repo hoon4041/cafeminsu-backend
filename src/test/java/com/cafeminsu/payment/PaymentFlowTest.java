@@ -34,33 +34,107 @@ class PaymentFlowTest extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("분할결제 — 기프티콘 + 카드, 합계 일치")
+    @DisplayName("분할결제 — 기프티콘 + 카드, verify 시 기프티콘 잔액 차감")
     void splitPayment() throws Exception {
         Setup s = setup();
+        long gifticonId = createGifticon(s.customer, 3000);   // 본인 귀속 기프티콘
 
-        mockMvc.perform(post("/api/payments/prepare")
+        // 1) prepare — 기프티콘 3000 + 카드 7000
+        MvcResult prepareRes = mockMvc.perform(post("/api/payments/prepare")
                         .header("Authorization", fixtures.authHeader(s.customer))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format(
-                                "{\"orderId\":%d,\"useGifticonId\":999,\"gifticonAmount\":3000,\"cardAmount\":7000}",
-                                s.orderId)))
+                                "{\"orderId\":%d,\"useGifticonId\":%d,\"gifticonAmount\":3000,\"cardAmount\":7000}",
+                                s.orderId, gifticonId)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.amount").value(7000));   // card amount만 응답
+                .andExpect(jsonPath("$.amount").value(7000))   // card amount만 응답
+                .andReturn();
+        String merchantUid = objectMapper.readTree(prepareRes.getResponse().getContentAsString())
+                .at("/merchantUid").asText();
+
+        // 2) 카드 결제분 카카오페이 승인 + verify → 기프티콘도 함께 차감
+        payByKakao(s.customer, merchantUid, 7000);
+
+        // 3) 기프티콘 잔액이 3000 → 0으로 차감되었는지 확인
+        assertGifticonBalance(s.customer, gifticonId, 0);
+    }
+
+    @Test
+    @DisplayName("전액 기프티콘 결제 — 카드 없이 prepare → verify로 확정·차감")
+    void fullGifticonPayment() throws Exception {
+        Setup s = setup();
+        long gifticonId = createGifticon(s.customer, 10000);
+
+        // 1) prepare — 전액 기프티콘(cardAmount 0)
+        MvcResult prepareRes = mockMvc.perform(post("/api/payments/prepare")
+                        .header("Authorization", fixtures.authHeader(s.customer))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.format(
+                                "{\"orderId\":%d,\"useGifticonId\":%d,\"gifticonAmount\":10000,\"cardAmount\":0}",
+                                s.orderId, gifticonId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.amount").value(0))
+                .andReturn();
+        String merchantUid = objectMapper.readTree(prepareRes.getResponse().getContentAsString())
+                .at("/merchantUid").asText();
+
+        // 2) 카카오페이 없이 바로 verify → PAID
+        mockMvc.perform(post("/api/payments/verify")
+                        .header("Authorization", fixtures.authHeader(s.customer))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.format("{\"impUid\":\"n/a\",\"merchantUid\":\"%s\"}", merchantUid)))
+                .andExpect(jsonPath("$.status").value("PAID"));
+
+        // 3) 잔액 차감 확인
+        assertGifticonBalance(s.customer, gifticonId, 0);
     }
 
     @Test
     @DisplayName("분할결제 합계 불일치 시 거부 (2603)")
     void splitPaymentAmountMismatch() throws Exception {
         Setup s = setup();
+        long gifticonId = createGifticon(s.customer, 3000);
 
         // totalAmount는 10000인데 합계 9000
         mockMvc.perform(post("/api/payments/prepare")
                         .header("Authorization", fixtures.authHeader(s.customer))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format(
-                                "{\"orderId\":%d,\"useGifticonId\":999,\"gifticonAmount\":3000,\"cardAmount\":6000}",
-                                s.orderId)))
+                                "{\"orderId\":%d,\"useGifticonId\":%d,\"gifticonAmount\":3000,\"cardAmount\":6000}",
+                                s.orderId, gifticonId)))
                 .andExpect(jsonPath("$.code").value("SPLIT_PAYMENT_AMOUNT_INVALID"));
+    }
+
+    @Test
+    @DisplayName("기프티콘 잔액보다 큰 금액으로 결제 시 거부 (2703)")
+    void gifticonInsufficientBalance() throws Exception {
+        Setup s = setup();
+        long gifticonId = createGifticon(s.customer, 2000);   // 잔액 2000
+
+        // 합계는 10000으로 맞지만 기프티콘 잔액(2000) < 사용액(3000)
+        mockMvc.perform(post("/api/payments/prepare")
+                        .header("Authorization", fixtures.authHeader(s.customer))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.format(
+                                "{\"orderId\":%d,\"useGifticonId\":%d,\"gifticonAmount\":3000,\"cardAmount\":7000}",
+                                s.orderId, gifticonId)))
+                .andExpect(jsonPath("$.code").value("GIFTICON_INSUFFICIENT_BALANCE"));
+    }
+
+    @Test
+    @DisplayName("남의 기프티콘으로 결제 시도 시 거부")
+    void cannotUseOthersGifticon() throws Exception {
+        Setup s = setup();
+        User other = fixtures.createCustomer("남");
+        long gifticonId = createGifticon(other, 3000);   // 남의 기프티콘
+
+        mockMvc.perform(post("/api/payments/prepare")
+                        .header("Authorization", fixtures.authHeader(s.customer))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.format(
+                                "{\"orderId\":%d,\"useGifticonId\":%d,\"gifticonAmount\":3000,\"cardAmount\":7000}",
+                                s.orderId, gifticonId)))
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
     }
 
     @Test
@@ -150,6 +224,25 @@ class PaymentFlowTest extends IntegrationTestSupport {
                 .at("/orderId").asLong();
 
         return new Setup(owner, customer, storeId, menuId, orderId);
+    }
+
+    /** 기프티콘 구매(본인 즉시 귀속) → gifticonId 반환. */
+    long createGifticon(User owner, int amount) throws Exception {
+        MvcResult res = mockMvc.perform(post("/api/gifticons")
+                        .header("Authorization", fixtures.authHeader(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.format("{\"amount\":%d,\"receiverId\":%d}", amount, owner.getId())))
+                .andExpect(status().isOk()).andReturn();
+        return objectMapper.readTree(res.getResponse().getContentAsString())
+                .at("/gifticonId").asLong();
+    }
+
+    /** 기프티콘 상세 조회로 현재 잔액이 기대값과 같은지 검증. */
+    void assertGifticonBalance(User owner, long gifticonId, int expectedBalance) throws Exception {
+        mockMvc.perform(get("/api/gifticons/" + gifticonId)
+                        .header("Authorization", fixtures.authHeader(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value(expectedBalance));
     }
 
     String prepare(Setup s, int cardAmount) throws Exception {
