@@ -200,6 +200,28 @@ public class GifticonService {
     }
 
     /* =========================================================
+     * 5-1) 결제 사용 가능 여부 검증 (결제 prepare 단계에서 호출)
+     *
+     * 차감은 하지 않고 소유·만료·잔액만 확인한다(빠른 실패용).
+     * 실제 차감 시점(use)에 비관적 락으로 다시 안전하게 검증된다.
+     * ========================================================= */
+    public void assertUsableForPayment(Long userId, Long gifticonId, int amount) {
+        Gifticon g = findOrThrow(gifticonId);
+        if (!g.isReceivedBy(userId)) {
+            throw new BaseException(BaseResponseStatus.ACCESS_DENIED);
+        }
+        if (g.isExpired()) {
+            throw new BaseException(BaseResponseStatus.GIFTICON_EXPIRED);
+        }
+        if (!g.isUsable()) {
+            throw new BaseException(BaseResponseStatus.GIFTICON_ALREADY_USED);
+        }
+        if (amount > g.getBalance()) {
+            throw new BaseException(BaseResponseStatus.GIFTICON_INSUFFICIENT_BALANCE);
+        }
+    }
+
+    /* =========================================================
      * 6) 기프티콘 사용 (차감) — 비관적 락
      * ========================================================= */
     @Transactional
