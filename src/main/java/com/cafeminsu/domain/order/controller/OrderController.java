@@ -53,9 +53,9 @@ public class OrderController {
         return orderService.getMyOrders(userId, status, page, size);
     }
 
-    /* 3-1. 최근 주문 5건 (홈 화면) */
-    @Operation(summary = "최근 주문 5건",
-            description = "홈 화면 빠른 표시용. 메뉴 항목·옵션까지 포함. 상태 무관 최신순 5건.")
+    /* 3-1. 최근 주문 2건 (홈 화면) */
+    @Operation(summary = "최근 주문 2건",
+            description = "홈 화면 빠른 표시용. 메뉴 항목·옵션까지 포함. 픽업 완료(DONE) 주문 최신순 2건.")
     @GetMapping("/api/orders/my/recent")
     public List<OrderDetailRes> myRecentOrders(@LoginUserId Long userId) {
         return orderService.getRecentOrders(userId);
