@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus;
  *   2800~2899   Stamp 도메인
  *   2900~2999   Notification 도메인
  *   3000~3099   Recommendation 도메인
+ *   3100~3199   NFC 도메인
  *
  * 안드로이드 팀은 code 값으로 분기 가능. 새 에러 추가 시 enum에 한 줄씩만 추가하세요.
  */
@@ -90,7 +91,12 @@ public enum BaseResponseStatus {
 
     // ===== Recommendation (3000~3099) =====
     RECOMMENDATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, 3000, "메뉴 추천 생성에 실패했습니다."),
-    NO_MENU_TO_RECOMMEND(HttpStatus.BAD_REQUEST, 3001, "추천할 메뉴가 없습니다.");
+    NO_MENU_TO_RECOMMEND(HttpStatus.BAD_REQUEST, 3001, "추천할 메뉴가 없습니다."),
+
+    // ===== NFC (3100~3199) =====
+    NFC_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, 3100, "존재하지 않는 NFC 태그입니다."),
+    NFC_TAG_INACTIVE(HttpStatus.BAD_REQUEST, 3101, "비활성화된 NFC 태그입니다."),
+    NFC_CLAIM_COOLDOWN(HttpStatus.CONFLICT, 3102, "오늘은 이미 이 태그로 쿠폰을 받았습니다.");
 
     private final HttpStatus httpStatus;
     private final int code;

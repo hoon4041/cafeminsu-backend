@@ -103,6 +103,10 @@ public class SecurityConfig {
                         /* ===== Image 업로드 (점주 전용) ===== */
                         .requestMatchers(HttpMethod.POST, "/api/images/**").hasRole("OWNER")
 
+                        /* ===== NFC =====
+                         * 태그 등록은 점주만. 태깅 발급(/api/nfc/claim)은 로그인 손님(기본 authenticated). */
+                        .requestMatchers(HttpMethod.POST, "/api/nfc/tags").hasRole("OWNER")
+
                         // 나머지는 로그인 필요
                         .anyRequest().authenticated()
                 )

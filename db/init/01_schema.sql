@@ -287,3 +287,43 @@ CREATE TABLE notifications (
   INDEX idx_noti_user_unread (user_id, is_read),
   CONSTRAINT fk_notif_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+-- -------------------------------------------------------
+-- 15. NFC_TAGS (매장 부착 NFC 태그)  [BaseEntity]
+-- -------------------------------------------------------
+CREATE TABLE nfc_tags (
+  id             BIGINT       NOT NULL AUTO_INCREMENT,
+  store_id       BIGINT       NOT NULL,
+  code           VARCHAR(100) NOT NULL  COMMENT '태그에 기록되는 시크릿 NFC-XXXX-XXXX (베어러)',
+  reward_amount  INT          NOT NULL  COMMENT '태깅 1회당 발급 쿠폰 금액(원)',
+  message        VARCHAR(200) NULL      COMMENT '쿠폰 표기 문구(선택)',
+  active         BOOLEAN      NOT NULL DEFAULT TRUE,
+  created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY idx_nfc_tag_code (code),
+  INDEX idx_nfc_tag_store (store_id),
+  CONSTRAINT fk_nfc_tags_store FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- -------------------------------------------------------
+-- 16. NFC_CLAIMS (NFC 태깅 쿠폰 발급 이력)  [BaseEntity]
+--     (tag_id, user_id, claim_date) UNIQUE 로 '하루 1회' 보장
+-- -------------------------------------------------------
+CREATE TABLE nfc_claims (
+  id           BIGINT   NOT NULL AUTO_INCREMENT,
+  tag_id       BIGINT   NOT NULL,
+  user_id      BIGINT   NOT NULL,
+  store_id     BIGINT   NOT NULL  COMMENT '발급 매장(분석·정산용)',
+  claim_date   DATE     NOT NULL  COMMENT '발급일(날짜 단위)',
+  gifticon_id  BIGINT   NULL      COMMENT '발급된 기프티콘 ID',
+  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_nfc_claim_tag_user_date (tag_id, user_id, claim_date),
+  INDEX idx_nfc_claim_user (user_id),
+  CONSTRAINT fk_nfc_claims_tag      FOREIGN KEY (tag_id)      REFERENCES nfc_tags(id)  ON DELETE CASCADE,
+  CONSTRAINT fk_nfc_claims_user     FOREIGN KEY (user_id)     REFERENCES users(id)     ON DELETE CASCADE,
+  CONSTRAINT fk_nfc_claims_store    FOREIGN KEY (store_id)    REFERENCES stores(id)    ON DELETE CASCADE,
+  CONSTRAINT fk_nfc_claims_gifticon FOREIGN KEY (gifticon_id) REFERENCES gifticons(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
