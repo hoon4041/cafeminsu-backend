@@ -1,16 +1,28 @@
 package com.cafeminsu.gifticon;
 
+import com.cafeminsu.domain.gifticon.dto.GifticonUseReq;
+import com.cafeminsu.domain.gifticon.dto.GifticonUseRes;
+import com.cafeminsu.domain.gifticon.entity.GifticonStatus;
+import com.cafeminsu.domain.gifticon.service.GifticonService;
 import com.cafeminsu.domain.user.entity.User;
+import com.cafeminsu.global.common.BaseResponseStatus;
+import com.cafeminsu.global.exception.BaseException;
 import com.cafeminsu.support.IntegrationTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class GifticonFlowTest extends IntegrationTestSupport {
+
+    @Autowired
+    private GifticonService gifticonService;
 
     @Test
     @DisplayName("기프티콘 구매 — 수신자 미지정, claimCode/shareLink 발급")
@@ -148,12 +160,10 @@ class GifticonFlowTest extends IntegrationTestSupport {
 
         long orderId = createDummyOrder(sender, receiver);
 
-        mockMvc.perform(post("/api/gifticons/" + issued.gifticonId + "/use")
-                        .header("Authorization", fixtures.authHeader(receiver))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.format("{\"orderId\":%d,\"usedAmount\":4500}", orderId)))
-                .andExpect(jsonPath("$.balanceAfter").value(45500))
-                .andExpect(jsonPath("$.status").value("PARTIAL"));
+        // 차감은 결제(PaymentService)에서 내부 호출된다. 도메인 차감 로직을 서비스로 직접 검증.
+        GifticonUseRes res = gifticonService.use(issued.gifticonId, new GifticonUseReq(orderId, 4500));
+        assertEquals(45500, res.balanceAfter());
+        assertEquals(GifticonStatus.PARTIAL, res.status());
     }
 
     @Test
@@ -165,11 +175,9 @@ class GifticonFlowTest extends IntegrationTestSupport {
 
         long orderId = createDummyOrder(sender, receiver);
 
-        mockMvc.perform(post("/api/gifticons/" + issued.gifticonId + "/use")
-                        .header("Authorization", fixtures.authHeader(receiver))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.format("{\"orderId\":%d,\"usedAmount\":99999}", orderId)))
-                .andExpect(jsonPath("$.code").value("GIFTICON_INSUFFICIENT_BALANCE"));
+        BaseException ex = assertThrows(BaseException.class,
+                () -> gifticonService.use(issued.gifticonId, new GifticonUseReq(orderId, 99999)));
+        assertEquals(BaseResponseStatus.GIFTICON_INSUFFICIENT_BALANCE, ex.getStatus());
     }
 
     @Test
@@ -182,19 +190,14 @@ class GifticonFlowTest extends IntegrationTestSupport {
         long orderId = createDummyOrder(sender, receiver);
 
         // 전액 사용
-        mockMvc.perform(post("/api/gifticons/" + issued.gifticonId + "/use")
-                        .header("Authorization", fixtures.authHeader(receiver))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.format("{\"orderId\":%d,\"usedAmount\":5000}", orderId)))
-                .andExpect(jsonPath("$.status").value("USED"))
-                .andExpect(jsonPath("$.balanceAfter").value(0));
+        GifticonUseRes res = gifticonService.use(issued.gifticonId, new GifticonUseReq(orderId, 5000));
+        assertEquals(GifticonStatus.USED, res.status());
+        assertEquals(0, res.balanceAfter());
 
         // 추가 사용 시도
-        mockMvc.perform(post("/api/gifticons/" + issued.gifticonId + "/use")
-                        .header("Authorization", fixtures.authHeader(receiver))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.format("{\"orderId\":%d,\"usedAmount\":100}", orderId)))
-                .andExpect(jsonPath("$.code").value("GIFTICON_ALREADY_USED"));
+        BaseException ex = assertThrows(BaseException.class,
+                () -> gifticonService.use(issued.gifticonId, new GifticonUseReq(orderId, 100)));
+        assertEquals(BaseResponseStatus.GIFTICON_ALREADY_USED, ex.getStatus());
     }
 
     @Test

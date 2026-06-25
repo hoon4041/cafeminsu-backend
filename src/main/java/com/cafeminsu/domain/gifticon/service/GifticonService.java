@@ -200,12 +200,13 @@ public class GifticonService {
     }
 
     /* =========================================================
-     * 5-1) 결제 사용 가능 여부 검증 (결제 prepare 단계에서 호출)
+     * 5-1) 결제 시 기프티콘 차감액 계산 (결제 prepare 단계에서 호출)
      *
-     * 차감은 하지 않고 소유·만료·잔액만 확인한다(빠른 실패용).
-     * 실제 차감 시점(use)에 비관적 락으로 다시 안전하게 검증된다.
+     * 차감액 = min(기프티콘 잔액, 주문 총액). 잔액이 주문액보다 크면 주문액 한도로 캡한다.
+     * 소유·만료·사용가능 여부를 함께 검증한다(빠른 실패용).
+     * 실제 차감은 use에서 비관적 락으로 다시 안전하게 수행된다.
      * ========================================================= */
-    public void assertUsableForPayment(Long userId, Long gifticonId, int amount) {
+    public int resolvePaymentAmount(Long userId, Long gifticonId, int orderTotal) {
         Gifticon g = findOrThrow(gifticonId);
         if (!g.isReceivedBy(userId)) {
             throw new BaseException(BaseResponseStatus.ACCESS_DENIED);
@@ -216,13 +217,14 @@ public class GifticonService {
         if (!g.isUsable()) {
             throw new BaseException(BaseResponseStatus.GIFTICON_ALREADY_USED);
         }
-        if (amount > g.getBalance()) {
-            throw new BaseException(BaseResponseStatus.GIFTICON_INSUFFICIENT_BALANCE);
-        }
+        return Math.min(g.getBalance(), orderTotal);
     }
 
     /* =========================================================
      * 6) 기프티콘 사용 (차감) — 비관적 락
+     *
+     * 결제(PaymentService)에서만 내부 호출된다. 외부 API로는 노출하지 않는다
+     * (직접 호출하면 결제와 이중 차감되므로).
      * ========================================================= */
     @Transactional
     public GifticonUseRes use(Long gifticonId, GifticonUseReq req) {

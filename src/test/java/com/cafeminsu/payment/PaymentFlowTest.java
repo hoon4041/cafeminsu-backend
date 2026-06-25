@@ -17,14 +17,15 @@ class PaymentFlowTest extends IntegrationTestSupport {
     void singleCardPayment() throws Exception {
         Setup s = setup();
 
-        // 1) prepare
+        // 1) prepare (기프티콘 없음 = 전액 카드)
         MvcResult prepareRes = mockMvc.perform(post("/api/payments/prepare")
                         .header("Authorization", fixtures.authHeader(s.customer))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.format("{\"orderId\":%d,\"cardAmount\":10000}", s.orderId)))
+                        .content(String.format("{\"orderId\":%d}", s.orderId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.merchantUid").isString())
-                .andExpect(jsonPath("$.amount").value(10000))
+                .andExpect(jsonPath("$.gifticonAmount").value(0))
+                .andExpect(jsonPath("$.cardAmount").value(10000))
                 .andReturn();
         String merchantUid = objectMapper.readTree(prepareRes.getResponse().getContentAsString())
                 .at("/merchantUid").asText();
@@ -39,15 +40,16 @@ class PaymentFlowTest extends IntegrationTestSupport {
         Setup s = setup();
         long gifticonId = createGifticon(s.customer, 3000);   // 본인 귀속 기프티콘
 
-        // 1) prepare — 기프티콘 3000 + 카드 7000
+        // 1) prepare — 기프티콘 선택만. 서버가 3000(차감) + 7000(카드)로 분할
         MvcResult prepareRes = mockMvc.perform(post("/api/payments/prepare")
                         .header("Authorization", fixtures.authHeader(s.customer))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format(
-                                "{\"orderId\":%d,\"useGifticonId\":%d,\"gifticonAmount\":3000,\"cardAmount\":7000}",
-                                s.orderId, gifticonId)))
+                                "{\"orderId\":%d,\"useGifticonId\":%d}", s.orderId, gifticonId)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.amount").value(7000))   // card amount만 응답
+                .andExpect(jsonPath("$.gifticonAmount").value(3000))
+                .andExpect(jsonPath("$.cardAmount").value(7000))
+                .andExpect(jsonPath("$.status").value("READY"))
                 .andReturn();
         String merchantUid = objectMapper.readTree(prepareRes.getResponse().getContentAsString())
                 .at("/merchantUid").asText();
@@ -60,65 +62,48 @@ class PaymentFlowTest extends IntegrationTestSupport {
     }
 
     @Test
-    @DisplayName("전액 기프티콘 결제 — 카드 없이 prepare → verify로 확정·차감")
-    void fullGifticonPayment() throws Exception {
-        Setup s = setup();
-        long gifticonId = createGifticon(s.customer, 10000);
+    @DisplayName("기프티콘 잔액 > 주문액 — prepare 한 번으로 즉시 확정(카드·카카오페이 불필요), 주문액만큼만 차감")
+    void fullGifticonPaymentWithCap() throws Exception {
+        Setup s = setup();   // 주문 총액 10000
+        long gifticonId = createGifticon(s.customer, 15000);   // 잔액 15000 (> 주문액)
 
-        // 1) prepare — 전액 기프티콘(cardAmount 0)
+        // prepare 한 번으로 차감액 캡(10000) + 즉시 PAID 확정 (verify·카카오페이 없음)
+        mockMvc.perform(post("/api/payments/prepare")
+                        .header("Authorization", fixtures.authHeader(s.customer))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.format(
+                                "{\"orderId\":%d,\"useGifticonId\":%d}", s.orderId, gifticonId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.gifticonAmount").value(10000))
+                .andExpect(jsonPath("$.cardAmount").value(0))
+                .andExpect(jsonPath("$.status").value("PAID"))
+                .andExpect(jsonPath("$.paymentId").isNumber());
+
+        // 10000만 차감되어 잔액 5000 남음
+        assertGifticonBalance(s.customer, gifticonId, 5000);
+    }
+
+    @Test
+    @DisplayName("기프티콘 잔액 < 주문액 — 잔액만큼 차감하고 나머지는 카드")
+    void gifticonBalanceLessThanOrder() throws Exception {
+        Setup s = setup();   // 주문 총액 10000
+        long gifticonId = createGifticon(s.customer, 2000);   // 잔액 2000 (< 주문액)
+
+        // 서버가 기프티콘 2000 + 카드 8000으로 분할
         MvcResult prepareRes = mockMvc.perform(post("/api/payments/prepare")
                         .header("Authorization", fixtures.authHeader(s.customer))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format(
-                                "{\"orderId\":%d,\"useGifticonId\":%d,\"gifticonAmount\":10000,\"cardAmount\":0}",
-                                s.orderId, gifticonId)))
+                                "{\"orderId\":%d,\"useGifticonId\":%d}", s.orderId, gifticonId)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.amount").value(0))
+                .andExpect(jsonPath("$.gifticonAmount").value(2000))
+                .andExpect(jsonPath("$.cardAmount").value(8000))
                 .andReturn();
         String merchantUid = objectMapper.readTree(prepareRes.getResponse().getContentAsString())
                 .at("/merchantUid").asText();
 
-        // 2) 카카오페이 없이 바로 verify → PAID
-        mockMvc.perform(post("/api/payments/verify")
-                        .header("Authorization", fixtures.authHeader(s.customer))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.format("{\"impUid\":\"n/a\",\"merchantUid\":\"%s\"}", merchantUid)))
-                .andExpect(jsonPath("$.status").value("PAID"));
-
-        // 3) 잔액 차감 확인
+        payByKakao(s.customer, merchantUid, 8000);
         assertGifticonBalance(s.customer, gifticonId, 0);
-    }
-
-    @Test
-    @DisplayName("분할결제 합계 불일치 시 거부 (2603)")
-    void splitPaymentAmountMismatch() throws Exception {
-        Setup s = setup();
-        long gifticonId = createGifticon(s.customer, 3000);
-
-        // totalAmount는 10000인데 합계 9000
-        mockMvc.perform(post("/api/payments/prepare")
-                        .header("Authorization", fixtures.authHeader(s.customer))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.format(
-                                "{\"orderId\":%d,\"useGifticonId\":%d,\"gifticonAmount\":3000,\"cardAmount\":6000}",
-                                s.orderId, gifticonId)))
-                .andExpect(jsonPath("$.code").value("SPLIT_PAYMENT_AMOUNT_INVALID"));
-    }
-
-    @Test
-    @DisplayName("기프티콘 잔액보다 큰 금액으로 결제 시 거부 (2703)")
-    void gifticonInsufficientBalance() throws Exception {
-        Setup s = setup();
-        long gifticonId = createGifticon(s.customer, 2000);   // 잔액 2000
-
-        // 합계는 10000으로 맞지만 기프티콘 잔액(2000) < 사용액(3000)
-        mockMvc.perform(post("/api/payments/prepare")
-                        .header("Authorization", fixtures.authHeader(s.customer))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.format(
-                                "{\"orderId\":%d,\"useGifticonId\":%d,\"gifticonAmount\":3000,\"cardAmount\":7000}",
-                                s.orderId, gifticonId)))
-                .andExpect(jsonPath("$.code").value("GIFTICON_INSUFFICIENT_BALANCE"));
     }
 
     @Test
@@ -132,8 +117,7 @@ class PaymentFlowTest extends IntegrationTestSupport {
                         .header("Authorization", fixtures.authHeader(s.customer))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(String.format(
-                                "{\"orderId\":%d,\"useGifticonId\":%d,\"gifticonAmount\":3000,\"cardAmount\":7000}",
-                                s.orderId, gifticonId)))
+                                "{\"orderId\":%d,\"useGifticonId\":%d}", s.orderId, gifticonId)))
                 .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
     }
 
@@ -141,13 +125,13 @@ class PaymentFlowTest extends IntegrationTestSupport {
     @DisplayName("같은 주문에 prepare 두 번 호출 시 거부")
     void duplicatePrepareRejected() throws Exception {
         Setup s = setup();
-        prepare(s, 10000);
+        prepare(s);
 
         // 두 번째 prepare
         mockMvc.perform(post("/api/payments/prepare")
                         .header("Authorization", fixtures.authHeader(s.customer))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.format("{\"orderId\":%d,\"cardAmount\":10000}", s.orderId)))
+                        .content(String.format("{\"orderId\":%d}", s.orderId)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_ORDER_STATUS"));
     }
@@ -156,7 +140,7 @@ class PaymentFlowTest extends IntegrationTestSupport {
     @DisplayName("카카오페이 ready를 거치지 않은 결제는 verify 실패")
     void verifyFailsWithoutKakaoPay() throws Exception {
         Setup s = setup();
-        String merchantUid = prepare(s, 10000);
+        String merchantUid = prepare(s);
 
         // ready/approve 없이 바로 verify → 카카오페이로 준비되지 않은 결제이므로 실패
         mockMvc.perform(post("/api/payments/verify")
@@ -176,7 +160,7 @@ class PaymentFlowTest extends IntegrationTestSupport {
         mockMvc.perform(post("/api/payments/prepare")
                         .header("Authorization", fixtures.authHeader(intruder))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.format("{\"orderId\":%d,\"cardAmount\":10000}", s.orderId)))
+                        .content(String.format("{\"orderId\":%d}", s.orderId)))
                 .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
     }
 
@@ -245,11 +229,12 @@ class PaymentFlowTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.balance").value(expectedBalance));
     }
 
-    String prepare(Setup s, int cardAmount) throws Exception {
+    /** 전액 카드 결제 prepare → merchantUid 반환. */
+    String prepare(Setup s) throws Exception {
         MvcResult res = mockMvc.perform(post("/api/payments/prepare")
                         .header("Authorization", fixtures.authHeader(s.customer))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.format("{\"orderId\":%d,\"cardAmount\":%d}", s.orderId, cardAmount)))
+                        .content(String.format("{\"orderId\":%d}", s.orderId)))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
                 .at("/merchantUid").asText();

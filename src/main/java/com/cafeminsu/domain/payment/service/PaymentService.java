@@ -85,29 +85,22 @@ public class PaymentService {
                     "이미 결제가 준비된 주문입니다.");
         }
 
-        int gifticonAmount = req.gifticonAmount() != null ? req.gifticonAmount() : 0;
-        int cardAmount = req.cardAmount() != null ? req.cardAmount() : 0;
-
-        // 분할결제 금액 검증
-        if (gifticonAmount + cardAmount != order.getTotalAmount()) {
-            throw new BaseException(BaseResponseStatus.SPLIT_PAYMENT_AMOUNT_INVALID);
+        // 서버가 분할 금액을 계산한다(클라가 보내지 않는다).
+        // 기프티콘 차감액 = min(잔액, 주문총액), 카드액 = 나머지.
+        int total = order.getTotalAmount();
+        int gifticonAmount = 0;
+        if (req.useGifticonId() != null) {
+            // 소유·만료·사용가능 검증 후 차감액 산출(주문액 한도로 캡)
+            gifticonAmount = gifticonService.resolvePaymentAmount(userId, req.useGifticonId(), total);
         }
-        // 기프티콘 사용 시 ID 필수 + 소유·만료·잔액 검증 (Gifticon 도메인에 위임)
-        if (gifticonAmount > 0) {
-            if (req.useGifticonId() == null) {
-                throw new BaseException(BaseResponseStatus.INVALID_REQUEST,
-                        "gifticonAmount가 있을 때 useGifticonId는 필수입니다.");
-            }
-            gifticonService.assertUsableForPayment(userId, req.useGifticonId(), gifticonAmount);
-        }
+        int cardAmount = total - gifticonAmount;
 
         String merchantUid = generateMerchantUid(order.getId());
 
-        // 기프티콘 결제분.
-        // 전액 기프티콘(cardAmount==0)이면 카드 row가 없으므로, verify가 찾을 수 있도록
-        // merchantUid를 GIFTICON row에 저장한다. 분할결제면 merchantUid는 카드 row에만 둔다.
+        // 기프티콘 결제분 row. 전액 기프티콘이면 merchantUid를 여기에 저장(추적·조회용).
+        Payment gifticonPayment = null;
         if (gifticonAmount > 0) {
-            paymentRepository.save(Payment.builder()
+            gifticonPayment = paymentRepository.save(Payment.builder()
                     .orderId(order.getId())
                     .merchantUid(cardAmount == 0 ? merchantUid : null)
                     .amount(gifticonAmount)
@@ -115,7 +108,7 @@ public class PaymentService {
                     .gifticonId(req.useGifticonId())
                     .build());
         }
-        // 카드 결제분 — merchantUid는 카드 row에
+        // 카드 결제분 row — merchantUid는 카드 row에
         if (cardAmount > 0) {
             paymentRepository.save(Payment.builder()
                     .orderId(order.getId())
@@ -125,9 +118,21 @@ public class PaymentService {
                     .build());
         }
 
+        // 전액 기프티콘 — 카드 결제분이 없으니 카카오페이가 불필요하다.
+        // prepare 단계에서 즉시 잔액을 차감하고 PAID로 확정한다(verify 호출 불필요).
+        if (cardAmount == 0) {
+            redeemGifticon(gifticonPayment, order.getId());
+            gifticonPayment.markPaid();
+            log.info("[Payment] prepare+확정(전액 기프티콘) orderId={} paymentId={} gifticon={}",
+                    order.getId(), gifticonPayment.getId(), gifticonAmount);
+            return new PaymentPrepareRes(merchantUid, gifticonAmount, cardAmount,
+                    PaymentStatus.PAID, gifticonPayment.getId());
+        }
+
         log.info("[Payment] prepare orderId={} merchantUid={} gifticon={} card={}",
                 order.getId(), merchantUid, gifticonAmount, cardAmount);
-        return new PaymentPrepareRes(merchantUid, cardAmount);
+        return new PaymentPrepareRes(merchantUid, gifticonAmount, cardAmount,
+                PaymentStatus.READY, null);
     }
 
     /* =========================================================
@@ -140,29 +145,24 @@ public class PaymentService {
      * ========================================================= */
     @Transactional
     public PaymentVerifyRes verify(Long userId, PaymentVerifyReq req) {
-        Payment payment = paymentRepository.findByMerchantUid(req.merchantUid())
+        Payment cardPayment = paymentRepository.findByMerchantUid(req.merchantUid())
                 .orElseThrow(() -> new BaseException(BaseResponseStatus.PAYMENT_NOT_FOUND));
 
-        Order order = orderRepository.findById(payment.getOrderId())
+        Order order = orderRepository.findById(cardPayment.getOrderId())
                 .orElseThrow(() -> new BaseException(BaseResponseStatus.ORDER_NOT_FOUND));
         if (!order.isPlacedBy(userId)) {
             throw new BaseException(BaseResponseStatus.ACCESS_DENIED);
         }
-        if (payment.getStatus() != PaymentStatus.READY) {
+        if (cardPayment.getStatus() != PaymentStatus.READY) {
             throw new BaseException(BaseResponseStatus.PAYMENT_VERIFICATION_FAILED,
                     "이미 처리된 결제입니다.");
         }
-
-        // 전액 기프티콘 결제 — 카드 row 없이 GIFTICON row가 merchantUid를 가진 경우.
-        // 카카오페이 검증 없이 기프티콘 잔액을 차감하고 확정한다.
-        if (payment.getMethod() == PaymentMethod.GIFTICON) {
-            redeemGifticon(payment, order.getId());
-            payment.markPaid();
-            log.info("[Payment] verify OK(전액 기프티콘) paymentId={} order={}", payment.getId(), order.getId());
-            return new PaymentVerifyRes(payment.getId(), payment.getStatus());
+        // verify는 카드 결제 확정 전용. 전액 기프티콘은 prepare에서 이미 확정된다.
+        if (cardPayment.getMethod() != PaymentMethod.CARD) {
+            throw new BaseException(BaseResponseStatus.PAYMENT_VERIFICATION_FAILED,
+                    "카드 결제만 verify로 확정합니다.");
         }
 
-        Payment cardPayment = payment;
         // 카드 결제는 카카오페이로만 승인된다. ready/approve를 거치지 않은 결제는 확정 불가.
         if (!cardPayment.isKakaoPay()) {
             cardPayment.markFailed();

@@ -28,7 +28,7 @@ class ScenarioBTest extends IntegrationTestSupport {
 
         /* === 주문 생성 + 결제 === */
         long orderId = createOrder(customer, storeId, menuId, 2);
-        String merchantUid = prepare(customer, orderId, 9000);
+        String merchantUid = prepare(customer, orderId);
         payByKakao(customer, merchantUid, 9000);
 
         /* === 점주 accept → ready → complete === */
@@ -104,11 +104,11 @@ class ScenarioBTest extends IntegrationTestSupport {
                 .at("/orderId").asLong();
     }
 
-    private String prepare(User customer, long orderId, int cardAmount) throws Exception {
+    private String prepare(User customer, long orderId) throws Exception {
         MvcResult res = mockMvc.perform(post("/api/payments/prepare")
                         .header("Authorization", fixtures.authHeader(customer))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(String.format("{\"orderId\":%d,\"cardAmount\":%d}", orderId, cardAmount)))
+                        .content(String.format("{\"orderId\":%d}", orderId)))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString())
                 .at("/merchantUid").asText();
