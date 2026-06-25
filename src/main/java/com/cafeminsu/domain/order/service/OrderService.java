@@ -8,7 +8,6 @@ import com.cafeminsu.domain.order.dto.OrderCancelReq;
 import com.cafeminsu.domain.order.dto.OrderCreateReq;
 import com.cafeminsu.domain.order.dto.OrderCreateRes;
 import com.cafeminsu.domain.order.dto.OrderDetailRes;
-import com.cafeminsu.domain.order.dto.OrderListItemRes;
 import com.cafeminsu.domain.order.dto.OrderStatusRes;
 import com.cafeminsu.domain.order.dto.StoreOrderItemRes;
 import com.cafeminsu.domain.order.entity.Order;
@@ -139,31 +138,25 @@ public class OrderService {
     }
 
     /* =========================================================
-     * 2) 내 주문 내역
+     * 2) 내 주문 내역 — 메뉴 항목(items)·옵션까지 상세 포함
      * ========================================================= */
-    public List<OrderListItemRes> getMyOrders(Long userId, OrderStatus status, int page, int size) {
+    public List<OrderDetailRes> getMyOrders(Long userId, OrderStatus status, int page, int size) {
         var pageable = PageRequest.of(page, size);
         var orders = (status == null)
                 ? orderRepository.findByUserIdOrderByIdDesc(userId, pageable)
                 : orderRepository.findByUserIdAndStatusOrderByIdDesc(userId, status, pageable);
 
-        Map<Long, String> storeNames = storeNames(orders.getContent().stream().map(Order::getStoreId).toList());
-        return orders.getContent().stream()
-                .map(o -> OrderListItemRes.of(o, storeNames.getOrDefault(o.getStoreId(), "(삭제된 매장)")))
-                .toList();
+        return toDetailResponses(orders.getContent());
     }
 
     /* =========================================================
-     * 3-1) 최근 주문 N건 — 홈 화면용 (상태 무관, 최신순 5건)
+     * 3-1) 최근 주문 N건 — 홈 화면용 (상태 무관, 최신순 5건). items·옵션 포함
      * ========================================================= */
-    public List<OrderListItemRes> getRecentOrders(Long userId) {
+    public List<OrderDetailRes> getRecentOrders(Long userId) {
         var orders = orderRepository.findByUserIdOrderByIdDesc(
                 userId, PageRequest.of(0, RECENT_ORDER_LIMIT));
 
-        Map<Long, String> storeNames = storeNames(orders.getContent().stream().map(Order::getStoreId).toList());
-        return orders.getContent().stream()
-                .map(o -> OrderListItemRes.of(o, storeNames.getOrDefault(o.getStoreId(), "(삭제된 매장)")))
-                .toList();
+        return toDetailResponses(orders.getContent());
     }
 
     /* =========================================================
@@ -305,6 +298,41 @@ public class OrderService {
         if (!store.isOwnedBy(userId)) {
             throw new BaseException(BaseResponseStatus.NOT_STORE_OWNER);
         }
+    }
+
+    /**
+     * 주문 목록 → 상세(items·옵션 포함) 응답 리스트.
+     * 매장명·메뉴명·옵션정보를 전체 주문에 대해 한 번씩만 조회한다(N+1 방지).
+     * items/options 컬렉션은 default_batch_fetch_size로 IN 절 묶음 로딩된다.
+     */
+    private List<OrderDetailRes> toDetailResponses(List<Order> orders) {
+        if (orders.isEmpty()) return List.of();
+
+        Map<Long, String> storeNames = storeNames(orders.stream().map(Order::getStoreId).toList());
+
+        Set<Long> menuIds = orders.stream()
+                .flatMap(o -> o.getItems().stream().map(OrderItem::getMenuId))
+                .collect(Collectors.toSet());
+        Map<Long, String> menuNames = menuIds.isEmpty() ? Map.of()
+                : menuRepository.findAllById(menuIds).stream()
+                .collect(Collectors.toMap(Menu::getId, Menu::getName));
+
+        Set<Long> optionIds = orders.stream()
+                .flatMap(o -> o.getItems().stream())
+                .flatMap(it -> it.getOptions().stream())
+                .map(OrderItemOption::getMenuOptionId)
+                .collect(Collectors.toSet());
+        Map<Long, OrderDetailRes.OptionInfo> optionInfos = optionIds.isEmpty() ? Map.of()
+                : menuOptionRepository.findAllById(optionIds).stream()
+                .collect(Collectors.toMap(
+                        MenuOption::getId,
+                        o -> new OrderDetailRes.OptionInfo(o.getOptionGroup(), o.getOptionName())));
+
+        return orders.stream()
+                .map(o -> OrderDetailRes.of(o,
+                        storeNames.getOrDefault(o.getStoreId(), "(삭제된 매장)"),
+                        menuNames, optionInfos))
+                .toList();
     }
 
     /** 매장 ID 리스트 → 이름 Map. 삭제된 매장은 null. */

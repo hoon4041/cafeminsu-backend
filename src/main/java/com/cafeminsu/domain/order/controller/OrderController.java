@@ -4,7 +4,6 @@ import com.cafeminsu.domain.order.dto.OrderCancelReq;
 import com.cafeminsu.domain.order.dto.OrderCreateReq;
 import com.cafeminsu.domain.order.dto.OrderCreateRes;
 import com.cafeminsu.domain.order.dto.OrderDetailRes;
-import com.cafeminsu.domain.order.dto.OrderListItemRes;
 import com.cafeminsu.domain.order.dto.OrderStatusRes;
 import com.cafeminsu.domain.order.dto.StoreOrderItemRes;
 import com.cafeminsu.domain.order.entity.OrderStatus;
@@ -43,9 +42,10 @@ public class OrderController {
     }
 
     /* 2. 내 주문 내역 */
-    @Operation(summary = "내 주문 내역", description = "status 필터 옵션 (PENDING/ACCEPTED/READY/DONE/CANCELLED)")
+    @Operation(summary = "내 주문 내역",
+            description = "메뉴 항목·옵션까지 포함한 주문 상세 목록. status 필터 옵션 (PENDING/ACCEPTED/READY/DONE/CANCELLED)")
     @GetMapping("/api/orders/my")
-    public List<OrderListItemRes> myOrders(
+    public List<OrderDetailRes> myOrders(
             @LoginUserId Long userId,
             @RequestParam(required = false) OrderStatus status,
             @RequestParam(defaultValue = "0") int page,
@@ -54,9 +54,10 @@ public class OrderController {
     }
 
     /* 3-1. 최근 주문 5건 (홈 화면) */
-    @Operation(summary = "최근 주문 5건", description = "홈 화면 빠른 표시용. 상태 무관 최신순 5건.")
+    @Operation(summary = "최근 주문 5건",
+            description = "홈 화면 빠른 표시용. 메뉴 항목·옵션까지 포함. 상태 무관 최신순 5건.")
     @GetMapping("/api/orders/my/recent")
-    public List<OrderListItemRes> myRecentOrders(@LoginUserId Long userId) {
+    public List<OrderDetailRes> myRecentOrders(@LoginUserId Long userId) {
         return orderService.getRecentOrders(userId);
     }
 
